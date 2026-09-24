@@ -6,6 +6,5 @@ export async function getPublicBusiness(slug: string) {
   const supabase = createPublicServerClient();
   const { data, error } = await supabase.rpc("get_public_business", { p_slug: slug });
   if (error || !data) return null;
-  return data as PublicBusiness;
+  return data as unknown as PublicBusiness;
 }
-

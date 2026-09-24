@@ -20,9 +20,11 @@
 - `supabase/tests/isolation.sql`: auditoria transacional de RLS, IDOR, acesso anônimo, FKs cross-tenant e overlap.
 - `npm audit`: dependências de produção e desenvolvimento.
 
+A auditoria SQL foi executada no projeto hospedado `omgjtfdkpfopcnmyggxh` em 23/09/2026 e retornou `isolation audit passed`. A transação terminou em rollback.
+
 ## Riscos residuais antes de produção
 
 - O rate limiter em memória não coordena múltiplas instâncias serverless.
-- É necessário executar o teste SQL em Supabase local/staging e fazer teste E2E dos e-mails.
+- Ainda é necessário fazer teste E2E dos e-mails em staging e repetir a auditoria SQL a cada mudança estrutural.
 - Logs e alertas devem ser enviados para um coletor sem dados sensíveis.
 - Políticas devem ser reauditadas sempre que uma tabela ou papel for adicionado.

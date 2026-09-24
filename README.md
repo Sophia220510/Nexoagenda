@@ -52,6 +52,10 @@ npx supabase db push
 
 Confira o project ref antes de confirmar o push. `supabase/seed.sql` contém dados fictícios e deve ser usado somente localmente; `db reset` o executa automaticamente.
 
+### Estado do projeto hospedado
+
+As três migrations versionadas foram aplicadas ao projeto `omgjtfdkpfopcnmyggxh` em 23/09/2026. A auditoria transacional de isolamento foi executada no banco hospedado e passou sem deixar dados de teste. O `.env.local` desta máquina usa somente a chave publicável e permanece ignorado pelo Git.
+
 ### Modelo
 
 - `profiles`: extensão segura de `auth.users`; criada por trigger.
@@ -149,4 +153,4 @@ Ela cria Empresa A/B dentro de uma transação que termina em rollback e tenta d
 - Rate limiting é apenas best effort por instância.
 - Não há cobrança, assinatura, WhatsApp automático, SMS, financeiro, estoque, fidelidade ou IA.
 - Alteração de slug e exclusões destrutivas não são oferecidas.
-- Antes de produção: aplicar/testar migrations no projeto hospedado, configurar e-mails Auth, redirects, domínio, observabilidade, rate limiting distribuído, backup/PITR e testes E2E em ambiente de staging.
+- Antes de produção: configurar e-mails Auth, redirects, domínio, observabilidade, rate limiting distribuído, backup/PITR e testes E2E em ambiente de staging.
