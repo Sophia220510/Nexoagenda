@@ -7,7 +7,10 @@ insert into auth.users (instance_id,id,aud,role,email,encrypted_password,email_c
 values
   ('00000000-0000-0000-0000-000000000000','a0000000-0000-4000-8000-000000000001','authenticated','authenticated','owner-a@example.test',crypt('password',gen_salt('bf')),now(),'{"provider":"email","providers":["email"]}','{"full_name":"Owner A"}',now(),now()),
   ('00000000-0000-0000-0000-000000000000','a0000000-0000-4000-8000-000000000002','authenticated','authenticated','pro-a@example.test',crypt('password',gen_salt('bf')),now(),'{"provider":"email","providers":["email"]}','{"full_name":"Professional A"}',now(),now()),
-  ('00000000-0000-0000-0000-000000000000','b0000000-0000-4000-8000-000000000001','authenticated','authenticated','owner-b@example.test',crypt('password',gen_salt('bf')),now(),'{"provider":"email","providers":["email"]}','{"full_name":"Owner B"}',now(),now());
+  ('00000000-0000-0000-0000-000000000000','b0000000-0000-4000-8000-000000000001','authenticated','authenticated','owner-b@example.test',crypt('password',gen_salt('bf')),now(),'{"provider":"email","providers":["email"]}','{"full_name":"Owner B"}',now(),now()),
+  ('00000000-0000-0000-0000-000000000000','c0000000-0000-4000-8000-000000000001','authenticated','authenticated','master@example.test',crypt('password',gen_salt('bf')),now(),'{"provider":"email","providers":["email"]}','{"full_name":"Master"}',now(),now());
+
+insert into public.platform_admins (user_id, active) values ('c0000000-0000-4000-8000-000000000001', true);
 
 insert into public.businesses (id,name,slug,phone) values
   ('a1000000-0000-4000-8000-000000000001','Empresa A','empresa-a','+5511999990001'),
@@ -43,18 +46,39 @@ do $$ begin
   if exists(select 1 from public.customers where id='b4000000-0000-4000-8000-000000000001') then raise exception 'IDOR customer B'; end if;
 end $$;
 
+select set_config('request.jwt.claim.sub','c0000000-0000-4000-8000-000000000001',true);
+do $$ begin
+  if (select count(*) from public.businesses) <> 2 then raise exception 'Platform admin cross-tenant read failed'; end if;
+  if (select count(*) from public.customers) <> 2 then raise exception 'Platform admin customer read failed'; end if;
+end $$;
+select public.admin_update_service('a3000000-0000-4000-8000-000000000001','Serviço A auditado','',3100,35,true);
+do $$ begin
+  if not exists(select 1 from public.admin_audit_logs where action='SERVICE_UPDATED' and business_id='a1000000-0000-4000-8000-000000000001') then raise exception 'Admin audit log failed'; end if;
+end $$;
+
 select set_config('request.jwt.claim.sub','a0000000-0000-4000-8000-000000000002',true);
+select public.configure_professional(
+  'a2000000-0000-4000-8000-000000000001',
+  '[{"service_id":"a3000000-0000-4000-8000-000000000001","duration_override_minutes":40}]'::jsonb,
+  '[{"weekday":1,"start_time":"09:00","end_time":"18:00"}]'::jsonb,
+  '[{"weekday":1,"start_time":"12:00","end_time":"13:00","reason":"Almoço"}]'::jsonb,
+  true
+);
 do $$ begin
   if (select count(*) from public.appointments) <> 1 then raise exception 'Professional own agenda failed'; end if;
   if exists(select 1 from public.appointments where id='b5000000-0000-4000-8000-000000000001') then raise exception 'Professional cross-tenant IDOR'; end if;
   if (select count(*) from public.customers) <> 1 then raise exception 'Professional customer scope failed'; end if;
+  if (select setup_completed_at from public.professionals where id='a2000000-0000-4000-8000-000000000001') is null then raise exception 'Professional setup completion failed'; end if;
+  if (select count(*) from public.recurring_blocks) <> 1 then raise exception 'Recurring block scope failed'; end if;
 end $$;
 
 set local role anon;
 select set_config('request.jwt.claim.sub','',true);
 do $$ begin
-  if (select count(*) from public.customers) <> 0 then raise exception 'Anonymous customer exposure'; end if;
-  if (select count(*) from public.appointments) <> 0 then raise exception 'Anonymous appointment exposure'; end if;
+  if has_table_privilege('anon','public.customers','select') then raise exception 'Anonymous customer table grant'; end if;
+  if has_table_privilege('anon','public.appointments','select') then raise exception 'Anonymous appointment table grant'; end if;
+  if has_table_privilege('anon','public.platform_admins','select') then raise exception 'Anonymous platform admin table grant'; end if;
+  if has_table_privilege('anon','public.recurring_blocks','select') then raise exception 'Anonymous recurring blocks table grant'; end if;
   if public.get_public_business('empresa-a') is null then raise exception 'Public business RPC failed'; end if;
   if public.get_public_business('slug-inexistente') is not null then raise exception 'Unknown slug exposure'; end if;
 end $$;

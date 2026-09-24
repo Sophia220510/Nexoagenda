@@ -31,8 +31,25 @@ export async function login(formData: FormData) {
     .limit(1)
     .maybeSingle();
 
+  const { data: platformAdmin } = await supabase
+    .from("platform_admins")
+    .select("user_id")
+    .eq("user_id", data.user.id)
+    .eq("active", true)
+    .maybeSingle();
+
+  if (platformAdmin) redirect("/admin");
+
   if (!membership) redirect("/onboarding");
-  redirect(membership.role === "PROFESSIONAL" ? "/painel/minha-agenda" : "/painel");
+  if (membership.role === "PROFESSIONAL") {
+    const { data: professional } = await supabase
+      .from("professionals")
+      .select("setup_completed_at")
+      .eq("user_id", data.user.id)
+      .maybeSingle();
+    redirect(professional?.setup_completed_at ? "/painel/minha-agenda" : "/painel/configuracao-inicial");
+  }
+  redirect("/painel");
 }
 
 export async function signup(formData: FormData) {
@@ -82,4 +99,3 @@ export async function logout() {
   await supabase.auth.signOut();
   redirect("/login");
 }
-

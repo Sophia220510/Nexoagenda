@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_logs: {
+        Row: {
+          action: string
+          actor_user_id: string
+          business_id: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+          metadata: Json
+        }
+        Insert: {
+          action: string
+          actor_user_id: string
+          business_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          metadata?: Json
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string
+          business_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          metadata?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_audit_logs_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointments: {
         Row: {
           business_id: string
@@ -253,6 +294,27 @@ export type Database = {
           },
         ]
       }
+      platform_admins: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       professional_services: {
         Row: {
           active: boolean
@@ -311,6 +373,7 @@ export type Database = {
           id: string
           name: string
           photo_url: string | null
+          setup_completed_at: string | null
           updated_at: string
           user_id: string | null
         }
@@ -322,6 +385,7 @@ export type Database = {
           id?: string
           name: string
           photo_url?: string | null
+          setup_completed_at?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -333,6 +397,7 @@ export type Database = {
           id?: string
           name?: string
           photo_url?: string | null
+          setup_completed_at?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -376,6 +441,57 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      recurring_blocks: {
+        Row: {
+          active: boolean
+          business_id: string
+          created_at: string
+          end_time: string
+          id: string
+          professional_id: string
+          reason: string | null
+          start_time: string
+          weekday: number
+        }
+        Insert: {
+          active?: boolean
+          business_id: string
+          created_at?: string
+          end_time: string
+          id?: string
+          professional_id: string
+          reason?: string | null
+          start_time: string
+          weekday: number
+        }
+        Update: {
+          active?: boolean
+          business_id?: string
+          created_at?: string
+          end_time?: string
+          id?: string
+          professional_id?: string
+          reason?: string | null
+          start_time?: string
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_blocks_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_blocks_professional_id_business_id_fkey"
+            columns: ["professional_id", "business_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id", "business_id"]
+          },
+        ]
       }
       services: {
         Row: {
@@ -471,6 +587,38 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_update_business: {
+        Args: {
+          p_active: boolean
+          p_business_id: string
+          p_logo_url: string
+          p_name: string
+          p_phone: string
+          p_timezone: string
+        }
+        Returns: undefined
+      }
+      admin_update_professional: {
+        Args: {
+          p_active: boolean
+          p_bio: string
+          p_name: string
+          p_photo_url: string
+          p_professional_id: string
+        }
+        Returns: undefined
+      }
+      admin_update_service: {
+        Args: {
+          p_active: boolean
+          p_description: string
+          p_duration_minutes: number
+          p_name: string
+          p_price_cents: number
+          p_service_id: string
+        }
+        Returns: undefined
+      }
       book_public_appointment: {
         Args: {
           p_customer_name: string
@@ -482,6 +630,16 @@ export type Database = {
           p_starts_at: string
         }
         Returns: string
+      }
+      configure_professional: {
+        Args: {
+          p_mark_complete?: boolean
+          p_professional_id: string
+          p_recurring_blocks: Json
+          p_services: Json
+          p_working_hours: Json
+        }
+        Returns: undefined
       }
       create_business_with_owner: {
         Args: {

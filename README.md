@@ -11,7 +11,7 @@ SaaS multiempresa de agendamento para barbearias e salões. Cada estabelecimento
 - `date-fns`/`date-fns-tz` para limites de data no fuso da empresa
 - Vitest para regras determinísticas
 
-Não há ORM nem chave `service_role` na aplicação.
+Não há ORM. A aplicação web nunca usa chave secreta: ela existe apenas no script local e explícito de bootstrap do ambiente demo.
 
 ## Instalação
 
@@ -54,7 +54,21 @@ Confira o project ref antes de confirmar o push. `supabase/seed.sql` contém dad
 
 ### Estado do projeto hospedado
 
-As três migrations versionadas foram aplicadas ao projeto `omgjtfdkpfopcnmyggxh` em 23/09/2026. A auditoria transacional de isolamento foi executada no banco hospedado e passou sem deixar dados de teste. O `.env.local` desta máquina usa somente a chave publicável e permanece ignorado pelo Git.
+As quatro migrations versionadas foram aplicadas ao projeto `omgjtfdkpfopcnmyggxh`. A auditoria transacional de isolamento foi executada no banco hospedado e passou sem deixar dados de teste. O `.env.local` permanece ignorado pelo Git.
+
+## Master Admin e ambiente demo
+
+O papel master é independente de `business_members` e fica em `platform_admins`. Usuários ativos dessa tabela entram em `/admin`, onde podem consultar todas as empresas, clientes e agendas. Alterações de empresa, profissional e serviço passam por RPCs específicas e geram registros em `admin_audit_logs`. Não há impersonação nem exclusões destrutivas.
+
+O ambiente demonstrativo é criado de forma idempotente por um script executado somente no servidor/local:
+
+```bash
+npm run bootstrap:demo
+```
+
+Antes, preencha em `.env.local` `SUPABASE_SECRET_KEY` e as variáveis `MASTER_ADMIN_*`, `DEMO_OWNER_*`, `DEMO_LUCAS_*` e `DEMO_PEDRO_*` listadas em `.env.example`. Use credenciais escolhidas por você; o script não inventa nem imprime senhas. A chave secreta e as credenciais demo não devem ser configuradas como variáveis públicas, enviadas ao Git ou usadas pela aplicação em runtime.
+
+O bootstrap cria/atualiza `barbearia-nexo-demo`, Rafael (OWNER), Lucas e Pedro (PROFESSIONAL), catálogo, durações individuais, jornadas, pausa recorrente, clientes fictícios e agendamentos futuros. Reexecutá-lo converge para o mesmo estado sem duplicar registros.
 
 ### Modelo
 
@@ -66,8 +80,10 @@ As três migrations versionadas foram aplicadas ao projeto `omgjtfdkpfopcnmyggxh
 - `professional_services`: serviços prestados, com overrides de preço/duração.
 - `working_hours`: faixas locais recorrentes, permitindo turnos separados.
 - `blocked_times`: intervalos absolutos indisponíveis.
+- `recurring_blocks`: intervalos semanais fixos, como almoço.
 - `customers`: clientes sem login; telefone único apenas dentro do tenant.
 - `appointments`: horários absolutos, status e vínculos compostos ao mesmo tenant.
+- `platform_admins` e `admin_audit_logs`: acesso master separado e trilha de alterações.
 
 Todas as entidades privadas têm relação inequívoca com `business_id`. FKs compostas impedem combinar profissional, serviço ou cliente de empresas diferentes.
 
@@ -104,7 +120,7 @@ As helpers RLS `is_business_member`, `is_business_owner` e `is_current_professio
 - `src/proxy.ts` renova cookies SSR e bloqueia acesso anônimo ao painel.
 - Cada Server Action privada repete a autorização; o proxy não é a única defesa.
 - Usuário sem membership segue para `/onboarding`.
-- OWNER segue para `/painel`; PROFESSIONAL, para `/painel/minha-agenda`.
+- OWNER segue para `/painel`; PROFESSIONAL sem configuração segue para o assistente inicial e, depois, para `/painel/minha-agenda`; master segue para `/admin`.
 
 No Dashboard do Supabase, configure Site URL e Redirect URLs para os domínios local e de produção, incluindo `/auth/callback` e `/redefinir-senha`.
 
@@ -149,7 +165,7 @@ Ela cria Empresa A/B dentro de uma transação que termina em rollback e tenta d
 
 ## Limitações atuais
 
-- Convite/vínculo de login de profissionais ainda não possui interface; o banco já suporta `professionals.user_id` opcional.
+- Convite/vínculo de novos logins profissionais ainda não possui interface; o bootstrap demonstra o vínculo e o banco suporta `professionals.user_id` opcional.
 - Rate limiting é apenas best effort por instância.
 - Não há cobrança, assinatura, WhatsApp automático, SMS, financeiro, estoque, fidelidade ou IA.
 - Alteração de slug e exclusões destrutivas não são oferecidas.

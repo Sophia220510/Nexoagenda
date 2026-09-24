@@ -22,7 +22,7 @@ export async function updateSession(request: NextRequest) {
 
   const { data } = await supabase.auth.getUser();
   const pathname = request.nextUrl.pathname;
-  const privateRoute = pathname.startsWith("/painel") || pathname === "/onboarding";
+  const privateRoute = pathname.startsWith("/painel") || pathname.startsWith("/admin") || pathname === "/onboarding";
   const authRoute = ["/login", "/cadastro", "/esqueci-a-senha"].includes(pathname);
 
   if (privateRoute && !data.user) {
@@ -33,8 +33,14 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (authRoute && data.user) {
+    const { data: platformAdmin } = await supabase
+      .from("platform_admins")
+      .select("user_id")
+      .eq("user_id", data.user.id)
+      .eq("active", true)
+      .maybeSingle();
     const panelUrl = request.nextUrl.clone();
-    panelUrl.pathname = "/painel";
+    panelUrl.pathname = platformAdmin ? "/admin" : "/painel";
     panelUrl.search = "";
     return NextResponse.redirect(panelUrl);
   }

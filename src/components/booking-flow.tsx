@@ -30,11 +30,11 @@ export function BookingFlow({ business }: { business: PublicBusiness }) {
       customer_name: form.get("name"), customer_phone: form.get("phone"), idempotency_key: idempotencyKey.current,
     }) });
     const payload = await response.json() as { error?: string };
-    if (!response.ok) { setMessage(payload.error ?? "Não foi possível agendar."); setLoading(false); return; }
+    if (!response.ok) { if (response.status === 409) { setSlot(""); await loadSlots(); setMessage("Esse horário acabou de ser reservado. Escolha outro horário."); } else setMessage(payload.error ?? "Não foi possível agendar."); setLoading(false); return; }
     setConfirmed(true); setLoading(false);
   }
 
-  if (confirmed) return <section className="booking-success"><span>✓</span><h2>Agendamento confirmado</h2><p>Seu horário foi reservado. Salve esta informação e, se necessário, fale com o estabelecimento.</p></section>;
+  if (confirmed) return <section className="booking-success"><span>✓</span><h2>Agendamento confirmado</h2><p>Seu horário foi reservado.</p><div className="booking-summary"><strong>{selectedService?.name}</strong><span>{business.professionals.find((professional) => professional.id === professionalId)?.name}</span><span>{new Intl.DateTimeFormat("pt-BR", { dateStyle: "full", timeStyle: "short", timeZone: business.timezone }).format(new Date(slot))}</span></div><p className="muted">Salve esta informação e, se necessário, fale com o estabelecimento.</p></section>;
   return <form onSubmit={submit} className="booking-card">
     <div className="step"><span>1</span><div><h2>Escolha o serviço</h2><div className="option-grid">{business.services.map((service) => <button type="button" className={serviceId === service.id ? "option selected" : "option"} onClick={() => { setServiceId(service.id); setProfessionalId(""); setSlots([]); }} key={service.id}><strong>{service.name}</strong><small>{formatCurrency(service.price_cents)} · {service.default_duration_minutes} min</small></button>)}</div></div></div>
     {serviceId && <div className="step"><span>2</span><div><h2>Escolha o profissional</h2><div className="option-grid">{professionals.map((professional) => <button type="button" className={professionalId === professional.id ? "option selected" : "option"} onClick={() => { setProfessionalId(professional.id); setSlots([]); }} key={professional.id}><strong>{professional.name}</strong><small>{professional.bio || "Profissional disponível"}</small></button>)}</div></div></div>}

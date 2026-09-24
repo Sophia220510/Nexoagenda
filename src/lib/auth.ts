@@ -28,6 +28,33 @@ export const getCurrentBusiness = cache(async (): Promise<Membership | null> => 
   return data as unknown as Membership | null;
 });
 
+export const getIsPlatformAdmin = cache(async () => {
+  const user = await getCurrentUser();
+  if (!user) return false;
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("platform_admins")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .eq("active", true)
+    .maybeSingle();
+  if (error) return false;
+  return Boolean(data);
+});
+
+export const getCurrentProfessional = cache(async () => {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("professionals")
+    .select("id,business_id,user_id,name,photo_url,bio,active,setup_completed_at")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (error) throw new Error("Não foi possível carregar o perfil profissional.");
+  return data;
+});
+
 export async function requireAuth() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -47,9 +74,20 @@ export async function requireOwner() {
   return membership;
 }
 
+export async function requirePlatformAdmin() {
+  await requireAuth();
+  if (!(await getIsPlatformAdmin())) redirect("/acesso-negado");
+}
+
 export async function requireProfessional() {
   const membership = await requireMembership();
   if (membership.role !== "PROFESSIONAL") redirect("/painel");
   return membership;
 }
 
+export async function requireConfiguredProfessional() {
+  const membership = await requireProfessional();
+  const professional = await getCurrentProfessional();
+  if (!professional?.setup_completed_at) redirect("/painel/configuracao-inicial");
+  return { membership, professional };
+}

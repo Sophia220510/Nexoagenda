@@ -15,10 +15,12 @@ export function DashboardNav({ membership }: { membership: Membership }) {
           <Link href="/painel/servicos">Serviços</Link>
           <Link href="/painel/clientes">Clientes</Link>
           <Link href="/painel/configuracoes">Configurações</Link>
-        </> : <Link href="/painel/minha-agenda">Minha agenda</Link>}
+        </> : <>
+          <Link href="/painel/minha-agenda">Minha agenda</Link>
+          <Link href="/painel/meus-horarios">Meus horários</Link>
+        </>}
       </nav>
       <form action={logout}><button className="sidebar-logout">Sair</button></form>
     </aside>
   );
 }
-

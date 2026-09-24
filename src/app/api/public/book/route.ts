@@ -27,11 +27,10 @@ export async function POST(request: Request) {
     const conflict = error.code === "23P01" || error.message.includes("conflict");
     const notFound = error.code === "P0002";
     return NextResponse.json(
-      { error: conflict ? "Este horário acabou de ser ocupado. Escolha outro." : notFound ? "Serviço ou profissional indisponível." : "Não foi possível confirmar o agendamento." },
+      { error: conflict ? "Esse horário acabou de ser reservado. Escolha outro horário." : notFound ? "Serviço ou profissional indisponível." : "Não foi possível confirmar o agendamento." },
       { status: conflict ? 409 : notFound ? 404 : 400 },
     );
   }
 
   return NextResponse.json({ appointment_id: data }, { status: 201 });
 }
-

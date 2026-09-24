@@ -237,3 +237,42 @@ export async function updateBusiness(formData: FormData) {
   revalidatePath(`/${membership.businesses?.slug ?? ""}`);
   redirect("/painel/configuracoes?success=Configurações%20salvas.");
 }
+
+const professionalConfigurationSchema = z.object({
+  professional_id: z.string().uuid(),
+  services: z.array(z.object({ service_id: z.string().uuid(), duration_override_minutes: z.number().int().min(5).max(480) })),
+  working_hours: z.array(z.object({ weekday: z.number().int().min(0).max(6), start_time: z.string().regex(/^\d{2}:\d{2}$/), end_time: z.string().regex(/^\d{2}:\d{2}$/) })),
+  recurring_blocks: z.array(z.object({ weekday: z.number().int().min(0).max(6), start_time: z.string().regex(/^\d{2}:\d{2}$/), end_time: z.string().regex(/^\d{2}:\d{2}$/), reason: z.string().trim().max(200).optional() })),
+});
+
+export async function saveProfessionalConfiguration(formData: FormData) {
+  const membership = await requireMembership();
+  const parsed = professionalConfigurationSchema.safeParse({
+    professional_id: formData.get("professional_id"),
+    services: JSON.parse(String(formData.get("services") ?? "[]")),
+    working_hours: JSON.parse(String(formData.get("working_hours") ?? "[]")),
+    recurring_blocks: JSON.parse(String(formData.get("recurring_blocks") ?? "[]")),
+  });
+  const returnPath = membership.role === "OWNER"
+    ? `/painel/profissionais/${String(formData.get("professional_id"))}`
+    : "/painel/configuracao-inicial";
+  if (!parsed.success || !parsed.data.services.length || !parsed.data.working_hours.length) {
+    toError(returnPath, "Selecione ao menos um serviço e um horário de trabalho válido.");
+  }
+  if ([...parsed.data.working_hours, ...parsed.data.recurring_blocks].some((range) => range.start_time >= range.end_time)) {
+    toError(returnPath, "Todo horário final deve ser posterior ao horário inicial.");
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("configure_professional", {
+    p_professional_id: parsed.data.professional_id,
+    p_services: parsed.data.services,
+    p_working_hours: parsed.data.working_hours,
+    p_recurring_blocks: parsed.data.recurring_blocks,
+    p_mark_complete: true,
+  });
+  if (error) toError(returnPath, "Não foi possível salvar a configuração profissional.");
+  revalidatePath("/painel");
+  revalidatePath("/painel/profissionais");
+  revalidatePath(returnPath);
+  redirect(membership.role === "OWNER" ? `${returnPath}?success=Configuração salva.` : "/painel/minha-agenda?success=Sua agenda está pronta.");
+}

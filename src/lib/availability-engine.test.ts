@@ -4,6 +4,10 @@ import { getAvailableSlotMinutes, getProfessionalDuration } from "./availability
 describe("getProfessionalDuration", () => {
   it("usa a duração padrão quando não há override", () => expect(getProfessionalDuration(30, null)).toBe(30));
   it("prioriza o override do profissional", () => expect(getProfessionalDuration(30, 45)).toBe(45));
+  it("permite durações diferentes para Lucas e Pedro", () => {
+    expect(getProfessionalDuration(30, 40)).toBe(40);
+    expect(getProfessionalDuration(30, 50)).toBe(50);
+  });
 });
 
 describe("getAvailableSlotMinutes", () => {
@@ -23,6 +27,12 @@ describe("getAvailableSlotMinutes", () => {
   it("respeita períodos bloqueados", () => {
     const slots = getAvailableSlotMinutes({ ...base, appointments: [], blockedTimes: [{ start: 11 * 60, end: 12 * 60 }] });
     expect(slots).not.toContain(10 * 60);
+  });
+
+  it("não oferece atendimento que atravesse intervalo recorrente", () => {
+    const slots = getAvailableSlotMinutes({ workingHours: [{ start: 9 * 60, end: 18 * 60 }], durationMinutes: 50, granularityMinutes: 10, appointments: [], blockedTimes: [{ start: 12 * 60, end: 13 * 60 }] });
+    expect(slots).not.toContain(11 * 60 + 20);
+    expect(slots).toContain(13 * 60);
   });
 
   it("agendamento cancelado não bloqueia a agenda", () => {
