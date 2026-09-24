@@ -61,6 +61,13 @@ export async function requireAuth() {
   return user;
 }
 
+export async function requirePasswordChanged() {
+  const user=await requireAuth(); const supabase=await createClient(); const {data}=await supabase.from("login_identities").select("must_change_password,active").eq("user_id",user.id).maybeSingle();
+  if(data&&!data.active){await supabase.auth.signOut();redirect("/login");}
+  if(data?.must_change_password)redirect("/trocar-senha");
+  return user;
+}
+
 export async function requireMembership() {
   await requireAuth();
   const membership = await getCurrentBusiness();

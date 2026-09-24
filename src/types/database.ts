@@ -226,6 +226,7 @@ export type Database = {
       businesses: {
         Row: {
           active: boolean
+          business_type: string
           created_at: string
           id: string
           logo_url: string | null
@@ -237,6 +238,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          business_type?: string
           created_at?: string
           id?: string
           logo_url?: string | null
@@ -248,6 +250,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          business_type?: string
           created_at?: string
           id?: string
           logo_url?: string | null
@@ -293,6 +296,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      login_identities: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          internal_auth_identifier: string
+          must_change_password: boolean
+          updated_at: string
+          user_id: string
+          username: string
+          username_normalized: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          internal_auth_identifier: string
+          must_change_password?: boolean
+          updated_at?: string
+          user_id: string
+          username: string
+          username_normalized: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          internal_auth_identifier?: string
+          must_change_password?: boolean
+          updated_at?: string
+          user_id?: string
+          username?: string
+          username_normalized?: string
+        }
+        Relationships: []
       }
       platform_admins: {
         Row: {
@@ -587,6 +626,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_create_business_bundle: { Args: { p_bundle: Json }; Returns: string }
+      complete_password_change: { Args: never; Returns: undefined }
       admin_update_business: {
         Args: {
           p_active: boolean
@@ -596,6 +637,10 @@ export type Database = {
           p_phone: string
           p_timezone: string
         }
+        Returns: undefined
+      }
+      admin_update_business_v2: {
+        Args: { p_active: boolean; p_business_id: string; p_business_type: string; p_logo_url: string; p_name: string; p_phone: string; p_timezone: string }
         Returns: undefined
       }
       admin_update_professional: {
@@ -799,4 +844,3 @@ export const Constants = {
     },
   },
 } as const
-

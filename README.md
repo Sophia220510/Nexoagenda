@@ -1,6 +1,6 @@
 # NexoAgenda
 
-SaaS multiempresa de agendamento para barbearias e salões. Cada estabelecimento compartilha a aplicação e o PostgreSQL, mas seus dados privados são isolados por chaves estrangeiras compostas, Row Level Security (RLS) e autorização no servidor.
+SaaS multiempresa de agendamento para qualquer negócio baseado em serviço, duração, profissional e horário. Cada estabelecimento compartilha a aplicação e o PostgreSQL, mas seus dados privados são isolados por chaves estrangeiras compostas, Row Level Security (RLS) e autorização no servidor.
 
 ## Stack
 
@@ -54,11 +54,11 @@ Confira o project ref antes de confirmar o push. `supabase/seed.sql` contém dad
 
 ### Estado do projeto hospedado
 
-As quatro migrations versionadas foram aplicadas ao projeto `omgjtfdkpfopcnmyggxh`. A auditoria transacional de isolamento foi executada no banco hospedado e passou sem deixar dados de teste. O `.env.local` permanece ignorado pelo Git.
+As sete migrations versionadas foram aplicadas ao projeto `omgjtfdkpfopcnmyggxh`. Auditorias transacionais de isolamento, username e criação administrativa foram executadas no banco hospedado e passaram sem deixar dados de teste. O `.env.local` permanece ignorado pelo Git.
 
 ## Master Admin e ambiente demo
 
-O papel master é independente de `business_members` e fica em `platform_admins`. Usuários ativos dessa tabela entram em `/admin`, onde podem consultar todas as empresas, clientes e agendas. Alterações de empresa, profissional e serviço passam por RPCs específicas e geram registros em `admin_audit_logs`. Não há impersonação nem exclusões destrutivas.
+O papel master é independente de `business_members` e fica em `platform_admins`. Usuários ativos dessa tabela entram em `/admin`, onde podem criar e consultar todos os estabelecimentos, usuários, profissionais, clientes e agendas. Alterações críticas geram registros em `admin_audit_logs`. Não há impersonação nem exclusões destrutivas.
 
 O ambiente demonstrativo é criado de forma idempotente por um script executado somente no servidor/local:
 
@@ -66,9 +66,9 @@ O ambiente demonstrativo é criado de forma idempotente por um script executado 
 npm run bootstrap:demo
 ```
 
-Antes, preencha em `.env.local` `SUPABASE_SECRET_KEY` e as variáveis `MASTER_ADMIN_*`, `DEMO_OWNER_*`, `DEMO_LUCAS_*` e `DEMO_PEDRO_*` listadas em `.env.example`. Use credenciais escolhidas por você; o script não inventa nem imprime senhas. A chave secreta e as credenciais demo não devem ser configuradas como variáveis públicas, enviadas ao Git ou usadas pela aplicação em runtime.
+Antes, preencha somente `SUPABASE_SECRET_KEY` em `.env.local`. O script gera senhas fortes, atualiza/cria as contas idempotentemente e mostra as quatro credenciais uma única vez no terminal. A chave secreta nunca deve receber prefixo `NEXT_PUBLIC_`, ser enviada ao Git ou utilizada no navegador.
 
-O bootstrap cria/atualiza `barbearia-nexo-demo`, Rafael (OWNER), Lucas e Pedro (PROFESSIONAL), catálogo, durações individuais, jornadas, pausa recorrente, clientes fictícios e agendamentos futuros. Reexecutá-lo converge para o mesmo estado sem duplicar registros.
+O bootstrap cria/atualiza `barbearia-nexo-demo`, Lucas (OWNER), Rafael e Pedro (PROFESSIONAL), catálogo, durações individuais, jornadas, pausa recorrente, clientes fictícios e agendamentos futuros. Reexecutá-lo converge para o mesmo estado sem duplicar registros.
 
 ### Modelo
 
@@ -84,6 +84,8 @@ O bootstrap cria/atualiza `barbearia-nexo-demo`, Rafael (OWNER), Lucas e Pedro (
 - `customers`: clientes sem login; telefone único apenas dentro do tenant.
 - `appointments`: horários absolutos, status e vínculos compostos ao mesmo tenant.
 - `platform_admins` e `admin_audit_logs`: acesso master separado e trilha de alterações.
+- `login_identities`: username global normalizado, identificador interno do Auth e troca obrigatória de senha; nunca contém senha.
+- `businesses.business_type`: categoria informativa; todas as categorias usam o mesmo modelo multiempresa.
 
 Todas as entidades privadas têm relação inequívoca com `business_id`. FKs compostas impedem combinar profissional, serviço ou cliente de empresas diferentes.
 
@@ -120,6 +122,8 @@ As helpers RLS `is_business_member`, `is_business_owner` e `is_current_professio
 - `src/proxy.ts` renova cookies SSR e bloqueia acesso anônimo ao painel.
 - Cada Server Action privada repete a autorização; o proxy não é a única defesa.
 - Usuário sem membership segue para `/onboarding`.
+- O login principal usa username; Supabase Auth continua responsável por hash, sessão e validação.
+- Contas temporárias passam por `/trocar-senha` antes do painel.
 - OWNER segue para `/painel`; PROFESSIONAL sem configuração segue para o assistente inicial e, depois, para `/painel/minha-agenda`; master segue para `/admin`.
 
 No Dashboard do Supabase, configure Site URL e Redirect URLs para os domínios local e de produção, incluindo `/auth/callback` e `/redefinir-senha`.

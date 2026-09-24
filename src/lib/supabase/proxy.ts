@@ -22,7 +22,7 @@ export async function updateSession(request: NextRequest) {
 
   const { data } = await supabase.auth.getUser();
   const pathname = request.nextUrl.pathname;
-  const privateRoute = pathname.startsWith("/painel") || pathname.startsWith("/admin") || pathname === "/onboarding";
+  const privateRoute = pathname.startsWith("/painel") || pathname.startsWith("/admin") || pathname === "/onboarding" || pathname.startsWith("/trocar-senha");
   const authRoute = ["/login", "/cadastro", "/esqueci-a-senha"].includes(pathname);
 
   if (privateRoute && !data.user) {

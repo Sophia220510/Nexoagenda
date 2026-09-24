@@ -14,7 +14,7 @@ const display = Fraunces({
 
 export const metadata: Metadata = {
   title: { default: "NexoAgenda", template: "%s | NexoAgenda" },
-  description: "Agendamento online para barbearias e salões.",
+  description: "Agenda inteligente para negócios e profissionais.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -17,7 +17,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
         <Notice {...query} />
         <form action={createBusiness} className="form-stack">
           <label>Nome do estabelecimento<input name="name" required maxLength={120} /></label>
-          <label>Endereço público<input name="slug" required minLength={3} maxLength={63} pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="barbearia-do-joao" /><small>nexoagenda.com/barbearia-do-joao</small></label>
+          <label>Endereço público<input name="slug" required minLength={3} maxLength={63} pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="studio-do-joao" /><small>nexoagenda.com/studio-do-joao</small></label>
           <label>WhatsApp<input name="phone" inputMode="tel" placeholder="(11) 99999-9999" required /></label>
           <label>Fuso horário<input name="timezone" defaultValue={DEFAULT_TIMEZONE} required /></label>
           <SubmitButton pendingText="Criando empresa...">Criar minha empresa</SubmitButton>
@@ -26,4 +26,3 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
     </main>
   );
 }
-

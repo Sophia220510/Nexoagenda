@@ -4,14 +4,6 @@ import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 const REQUIRED_ENV = [
   "NEXT_PUBLIC_SUPABASE_URL",
   "SUPABASE_SECRET_KEY",
-  "MASTER_ADMIN_EMAIL",
-  "MASTER_ADMIN_PASSWORD",
-  "DEMO_OWNER_EMAIL",
-  "DEMO_OWNER_PASSWORD",
-  "DEMO_LUCAS_EMAIL",
-  "DEMO_LUCAS_PASSWORD",
-  "DEMO_PEDRO_EMAIL",
-  "DEMO_PEDRO_PASSWORD",
 ] as const;
 
 type RequiredEnv = (typeof REQUIRED_ENV)[number];
@@ -25,10 +17,8 @@ function readEnv(): Env {
   return Object.fromEntries(REQUIRED_ENV.map((name) => [name, process.env[name]!.trim()])) as Env;
 }
 
-function ensureDistinctEmails(env: Env) {
-  const emails = [env.MASTER_ADMIN_EMAIL, env.DEMO_OWNER_EMAIL, env.DEMO_LUCAS_EMAIL, env.DEMO_PEDRO_EMAIL].map((email) => email.toLowerCase());
-  if (new Set(emails).size !== emails.length) throw new Error("Use quatro e-mails diferentes para as contas master e demo.");
-}
+const internalIdentifier = (username: string) => `${username}@auth.nexo.invalid`;
+function temporaryPassword() { const alphabet="ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%"; const bytes=crypto.getRandomValues(new Uint8Array(20)); return Array.from(bytes,(byte)=>alphabet[byte%alphabet.length]).join(""); }
 
 function addDateDays(date: string, days: number) {
   const value = new Date(`${date}T00:00:00.000Z`);
@@ -44,7 +34,6 @@ function nextWeekday(today: string, weekday: number, extraWeeks = 0) {
 
 async function main() {
   const env = readEnv();
-  ensureDistinctEmails(env);
   const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SECRET_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
@@ -60,23 +49,30 @@ async function main() {
     throw new Error(`Não foi possível concluir a busca do usuário ${email}.`);
   }
 
-  async function ensureUser(email: string, password: string, fullName: string): Promise<User> {
+  async function ensureUser(username: string, password: string, fullName: string): Promise<User> {
+    const email = internalIdentifier(username);
     const existing = await findUser(email);
-    if (existing) return existing;
+    if (existing) { const { data,error }=await supabase.auth.admin.updateUserById(existing.id,{password,email_confirm:true,user_metadata:{full_name:fullName,username}}); if(error)throw error; return data.user; }
     const { data, error } = await supabase.auth.admin.createUser({
-      email, password, email_confirm: true, user_metadata: { full_name: fullName },
+      email, password, email_confirm: true, user_metadata: { full_name: fullName, username },
     });
     if (error) throw error;
     return data.user;
   }
 
-  const master = await ensureUser(env.MASTER_ADMIN_EMAIL, env.MASTER_ADMIN_PASSWORD, "Master Admin NEXO");
-  const rafaelUser = await ensureUser(env.DEMO_OWNER_EMAIL, env.DEMO_OWNER_PASSWORD, "Rafael — Owner Demo");
-  const lucasUser = await ensureUser(env.DEMO_LUCAS_EMAIL, env.DEMO_LUCAS_PASSWORD, "Lucas — Profissional Demo");
-  const pedroUser = await ensureUser(env.DEMO_PEDRO_EMAIL, env.DEMO_PEDRO_PASSWORD, "Pedro — Profissional Demo");
+  const credentials = { master: { username:"nexo.admin",password:temporaryPassword() }, lucas: { username:"lucas.owner",password:temporaryPassword() }, rafael: { username:"rafael.demo",password:temporaryPassword() }, pedro: { username:"pedro.demo",password:temporaryPassword() } };
+  const master = await ensureUser(credentials.master.username, credentials.master.password, "Master Admin NEXO");
+  const lucasUser = await ensureUser(credentials.lucas.username, credentials.lucas.password, "Lucas — Owner Demo");
+  const rafaelUser = await ensureUser(credentials.rafael.username, credentials.rafael.password, "Rafael — Profissional Demo");
+  const pedroUser = await ensureUser(credentials.pedro.username, credentials.pedro.password, "Pedro — Profissional Demo");
 
   for (const [user, fullName] of [[master, "Master Admin NEXO"], [rafaelUser, "Rafael"], [lucasUser, "Lucas"], [pedroUser, "Pedro"]] as const) {
     const { error } = await supabase.from("profiles").upsert({ id: user.id, full_name: fullName }, { onConflict: "id" });
+    if (error) throw error;
+  }
+  const identityRows = [[master, credentials.master.username], [lucasUser, credentials.lucas.username], [rafaelUser, credentials.rafael.username], [pedroUser, credentials.pedro.username]] as const;
+  for (const [user, username] of identityRows) {
+    const { error } = await supabase.from("login_identities").upsert({ user_id:user.id, username, username_normalized:username, internal_auth_identifier:internalIdentifier(username), active:true, must_change_password:true }, { onConflict:"user_id" });
     if (error) throw error;
   }
 
@@ -87,39 +83,39 @@ async function main() {
   if (businessLookupError) throw businessLookupError;
   let businessId = existingBusiness?.id;
   if (businessId) {
-    const { error } = await supabase.from("businesses").update({ name: "Barbearia NEXO Demo", phone: "+5511000000000", timezone: "America/Sao_Paulo", active: true }).eq("id", businessId);
+    const { error } = await supabase.from("businesses").update({ name: "Barbearia NEXO Demo", business_type: "BARBERSHOP", phone: "+5511000000000", timezone: "America/Sao_Paulo", active: true }).eq("id", businessId);
     if (error) throw error;
   } else {
-    const { data, error } = await supabase.from("businesses").insert({ name: "Barbearia NEXO Demo", slug: "barbearia-nexo-demo", phone: "+5511000000000", timezone: "America/Sao_Paulo", active: true }).select("id").single();
+    const { data, error } = await supabase.from("businesses").insert({ name: "Barbearia NEXO Demo", business_type: "BARBERSHOP", slug: "barbearia-nexo-demo", phone: "+5511000000000", timezone: "America/Sao_Paulo", active: true }).select("id").single();
     if (error) throw error;
     businessId = data.id;
   }
 
   const memberRows = [
-    { business_id: businessId, user_id: rafaelUser.id, role: "OWNER" },
-    { business_id: businessId, user_id: lucasUser.id, role: "PROFESSIONAL" },
+    { business_id: businessId, user_id: lucasUser.id, role: "OWNER" },
+    { business_id: businessId, user_id: rafaelUser.id, role: "PROFESSIONAL" },
     { business_id: businessId, user_id: pedroUser.id, role: "PROFESSIONAL" },
   ];
   const { error: memberError } = await supabase.from("business_members").upsert(memberRows, { onConflict: "business_id,user_id" });
   if (memberError) throw memberError;
 
-  async function ensureProfessional(userId: string, name: string, bio: string) {
+  async function ensureProfessional(userId: string, name: string, bio: string, completed: boolean) {
     const { data: current, error: lookupError } = await supabase.from("professionals").select("id").eq("business_id", businessId).eq("user_id", userId).maybeSingle();
     if (lookupError) throw lookupError;
     if (current) {
-      const { error } = await supabase.from("professionals").update({ name, bio, active: true, setup_completed_at: new Date().toISOString() }).eq("id", current.id);
+      const { error } = await supabase.from("professionals").update({ name, bio, active: true, setup_completed_at: completed ? new Date().toISOString() : null }).eq("id", current.id);
       if (error) throw error;
       return current.id;
     }
-    const { data, error } = await supabase.from("professionals").insert({ business_id: businessId, user_id: userId, name, bio, active: true, setup_completed_at: new Date().toISOString() }).select("id").single();
+    const { data, error } = await supabase.from("professionals").insert({ business_id: businessId, user_id: userId, name, bio, active: true, setup_completed_at: completed ? new Date().toISOString() : null }).select("id").single();
     if (error) throw error;
     return data.id;
   }
 
   const professionalIds = {
-    Rafael: await ensureProfessional(rafaelUser.id, "Rafael", "Fundador e especialista em cortes clássicos."),
-    Lucas: await ensureProfessional(lucasUser.id, "Lucas", "Cortes modernos, barba e acabamento."),
-    Pedro: await ensureProfessional(pedroUser.id, "Pedro", "Especialista em corte, barba e platinado."),
+    Lucas: await ensureProfessional(lucasUser.id, "Lucas", "Proprietário e especialista em cortes modernos.", true),
+    Rafael: await ensureProfessional(rafaelUser.id, "Rafael", "Especialista em cortes clássicos e barba.", false),
+    Pedro: await ensureProfessional(pedroUser.id, "Pedro", "Especialista em corte, barba e platinado.", false),
   };
 
   const serviceDefinitions = [
@@ -127,7 +123,10 @@ async function main() {
     { name: "Barba", description: "Modelagem, toalha quente e acabamento.", price_cents: 3500, default_duration_minutes: 30 },
     { name: "Corte + barba", description: "Experiência completa de corte e barba.", price_cents: 7500, default_duration_minutes: 75 },
     { name: "Acabamento", description: "Pezinho e acabamento rápido.", price_cents: 2000, default_duration_minutes: 15 },
-    { name: "Platinado", description: "Descoloração e tonalização profissional.", price_cents: 18000, default_duration_minutes: 180 },
+    { name: "Sobrancelha", description: "Design e acabamento.", price_cents: 2000, default_duration_minutes: 15 },
+    { name: "Luzes", description: "Clareamento e tonalização.", price_cents: 15000, default_duration_minutes: 120 },
+    { name: "Platinado", description: "Descoloração e tonalização profissional.", price_cents: 20000, default_duration_minutes: 180 },
+    { name: "Hidratação", description: "Tratamento e finalização.", price_cents: 6000, default_duration_minutes: 45 },
   ];
   const serviceIds: Record<string, string> = {};
   for (const definition of serviceDefinitions) {
@@ -145,8 +144,8 @@ async function main() {
   }
 
   const assignments = [
-    ...serviceDefinitions.map((service) => ({ business_id: businessId, professional_id: professionalIds.Rafael, service_id: serviceIds[service.name], duration_override_minutes: null, active: true })),
-    ...["Corte masculino", "Barba", "Corte + barba", "Acabamento"].map((name) => ({ business_id: businessId, professional_id: professionalIds.Lucas, service_id: serviceIds[name], duration_override_minutes: name === "Corte masculino" ? 40 : null, active: true })),
+    ...serviceDefinitions.map((service) => ({ business_id: businessId, professional_id: professionalIds.Lucas, service_id: serviceIds[service.name], duration_override_minutes: service.name === "Corte masculino" ? 35 : null, active: true })),
+    ...["Corte masculino", "Barba", "Corte + barba", "Acabamento"].map((name) => ({ business_id: businessId, professional_id: professionalIds.Rafael, service_id: serviceIds[name], duration_override_minutes: name === "Corte masculino" ? 45 : null, active: true })),
     ...["Corte masculino", "Barba", "Corte + barba", "Platinado"].map((name) => ({ business_id: businessId, professional_id: professionalIds.Pedro, service_id: serviceIds[name], duration_override_minutes: name === "Corte masculino" ? 50 : null, active: true })),
   ];
   const { error: assignmentError } = await supabase.from("professional_services").upsert(assignments, { onConflict: "professional_id,service_id" });
@@ -172,7 +171,7 @@ async function main() {
   const customerDefinitions = [
     ["Gabriel Martins", "+5511000000101"], ["Matheus Lima", "+5511000000102"],
     ["André Santos", "+5511000000103"], ["Henrique Costa", "+5511000000104"],
-    ["Bruno Almeida", "+5511000000105"], ["Caio Oliveira", "+5511000000106"],
+    ["Bruno Almeida", "+5511000000105"], ["Caio Souza", "+5511000000106"],
   ] as const;
   const customerIds: Record<string, string> = {};
   for (const [name, phone] of customerDefinitions) {
@@ -189,7 +188,7 @@ async function main() {
     { key: "91000000-0000-4000-8000-000000000003", professional: "Lucas", service: "Barba", customer: "André Santos", date: nextWeekday(today, 2), time: "11:00", duration: 30 },
     { key: "91000000-0000-4000-8000-000000000004", professional: "Pedro", service: "Corte masculino", customer: "Henrique Costa", date: nextWeekday(today, 3), time: "09:00", duration: 50 },
     { key: "91000000-0000-4000-8000-000000000005", professional: "Rafael", service: "Corte + barba", customer: "Bruno Almeida", date: nextWeekday(today, 5), time: "14:00", duration: 75 },
-    { key: "91000000-0000-4000-8000-000000000006", professional: "Pedro", service: "Platinado", customer: "Caio Oliveira", date: nextWeekday(today, 6), time: "13:30", duration: 180 },
+    { key: "91000000-0000-4000-8000-000000000006", professional: "Pedro", service: "Platinado", customer: "Caio Souza", date: nextWeekday(today, 6), time: "13:30", duration: 180 },
   ] as const;
   for (const appointment of appointmentDefinitions) {
     const startsAt = fromZonedTime(`${appointment.date} ${appointment.time}:00`, timezone);
@@ -208,12 +207,14 @@ async function main() {
     if (result.error) throw result.error;
   }
 
-  console.log("Bootstrap concluído sem imprimir senhas.");
-  console.log(`Master admin: ${env.MASTER_ADMIN_EMAIL}`);
-  console.log(`Owner demo: ${env.DEMO_OWNER_EMAIL}`);
-  console.log(`Lucas: ${env.DEMO_LUCAS_EMAIL}`);
-  console.log(`Pedro: ${env.DEMO_PEDRO_EMAIL}`);
-  console.log(`Página pública: ${env.NEXT_PUBLIC_SUPABASE_URL.includes("localhost") ? "http://localhost:3000" : process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/barbearia-nexo-demo`);
+  console.log("=====================================");
+  console.log("NEXO AGENDA — CREDENCIAIS DE TESTE");
+  console.log(`MASTER ADMIN\nUsuário: ${credentials.master.username}\nSenha temporária: ${credentials.master.password}`);
+  console.log(`OWNER DEMO\nUsuário: ${credentials.lucas.username}\nSenha temporária: ${credentials.lucas.password}`);
+  console.log(`RAFAEL\nUsuário: ${credentials.rafael.username}\nSenha temporária: ${credentials.rafael.password}`);
+  console.log(`PEDRO\nUsuário: ${credentials.pedro.username}\nSenha temporária: ${credentials.pedro.password}`);
+  console.log("=====================================");
+  console.log(`Página pública: ${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/barbearia-nexo-demo`);
   console.log(`Empresa: ${businessId}; profissionais: 3; serviços: ${serviceDefinitions.length}; clientes: ${customerDefinitions.length}; appointments: ${appointmentDefinitions.length}.`);
 }
 
