@@ -182,8 +182,13 @@ export async function removeWorkingHour(formData: FormData) {
 export async function createBlockedTime(formData: FormData) {
   const membership = await requireMembership();
   const user = await requireAuth();
+  const date = String(formData.get("date") ?? "");
+  const startTime = String(formData.get("start_time") ?? "");
+  const endTime = String(formData.get("end_time") ?? "");
+  const rawStartsAt = String(formData.get("starts_at") ?? (date && startTime ? `${date}T${startTime}` : ""));
+  const rawEndsAt = String(formData.get("ends_at") ?? (date && endTime ? `${date}T${endTime}` : ""));
   const parsed = z.object({ professional_id: z.string().uuid(), starts_at: z.string().min(16), ends_at: z.string().min(16), reason: z.string().trim().max(500).optional() }).safeParse({
-    professional_id: formData.get("professional_id"), starts_at: formData.get("starts_at"), ends_at: formData.get("ends_at"), reason: String(formData.get("reason") ?? "") || undefined,
+    professional_id: formData.get("professional_id"), starts_at: rawStartsAt, ends_at: rawEndsAt, reason: String(formData.get("reason") ?? "") || undefined,
   });
   const returnPath = membership.role === "OWNER" ? "/painel/agenda" : "/painel/minha-agenda";
   if (!parsed.success) toError(returnPath, "Dados do bloqueio inválidos.");
@@ -191,7 +196,28 @@ export async function createBlockedTime(formData: FormData) {
   const startsAt = fromZonedTime(parsed.data.starts_at, timezone);
   const endsAt = fromZonedTime(parsed.data.ends_at, timezone);
   if (!Number.isFinite(startsAt.getTime()) || startsAt >= endsAt) toError(returnPath, "O fim deve ser posterior ao início.");
+  if (parsed.data.starts_at.slice(0, 10) !== parsed.data.ends_at.slice(0, 10)) toError(returnPath, "Crie um bloqueio por dia. Para vários dias, repita o bloqueio em cada data.");
+  if (endsAt <= new Date()) toError(returnPath, "Escolha um horário futuro.");
   const supabase = await createClient();
+  const localDate = parsed.data.starts_at.slice(0, 10);
+  const localStart = parsed.data.starts_at.slice(11, 16);
+  const localEnd = parsed.data.ends_at.slice(11, 16);
+  const weekday = new Date(`${localDate}T12:00:00Z`).getUTCDay();
+  const [professional, hours, recurring, appointments, existingBlocks] = await Promise.all([
+    supabase.from("professionals").select("id").eq("id", parsed.data.professional_id).eq("business_id", membership.business_id).eq("active", true).maybeSingle(),
+    supabase.from("working_hours").select("start_time,end_time").eq("professional_id", parsed.data.professional_id).eq("business_id", membership.business_id).eq("weekday", weekday).eq("active", true),
+    supabase.from("recurring_blocks").select("start_time,end_time").eq("professional_id", parsed.data.professional_id).eq("business_id", membership.business_id).eq("weekday", weekday).eq("active", true),
+    supabase.from("appointments").select("id").eq("professional_id", parsed.data.professional_id).eq("business_id", membership.business_id).neq("status", "CANCELLED").lt("starts_at", endsAt.toISOString()).gt("ends_at", startsAt.toISOString()).limit(1),
+    supabase.from("blocked_times").select("id").eq("professional_id", parsed.data.professional_id).eq("business_id", membership.business_id).lt("starts_at", endsAt.toISOString()).gt("ends_at", startsAt.toISOString()).limit(1),
+  ]);
+  if (professional.error || hours.error || recurring.error || appointments.error || existingBlocks.error) toError(returnPath, "Não foi possível verificar a disponibilidade desse horário.");
+  if (!professional.data) toError(returnPath, "Profissional inválido.");
+  const insideWorkingHours = (hours.data ?? []).some((range) => localStart >= range.start_time.slice(0, 5) && localEnd <= range.end_time.slice(0, 5));
+  if (!insideWorkingHours) toError(returnPath, "Esse horário já está bloqueado: ele fica fora do expediente.");
+  const hitsRecurringBlock = (recurring.data ?? []).some((range) => localStart < range.end_time.slice(0, 5) && localEnd > range.start_time.slice(0, 5));
+  if (hitsRecurringBlock) toError(returnPath, "Esse horário já está bloqueado: ele coincide com o intervalo ou almoço.");
+  if (appointments.data?.length) toError(returnPath, "Esse horário já está ocupado por um agendamento.");
+  if (existingBlocks.data?.length) toError(returnPath, "Esse horário já está bloqueado.");
   const { error } = await supabase.from("blocked_times").insert({ business_id: membership.business_id, professional_id: parsed.data.professional_id, starts_at: startsAt.toISOString(), ends_at: endsAt.toISOString(), reason: parsed.data.reason ?? null, created_by: user.id });
   if (error) toError(returnPath, "Você não pode criar esse bloqueio.");
   revalidatePath(returnPath);

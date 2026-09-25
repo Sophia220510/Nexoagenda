@@ -20,7 +20,12 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
     supabase.from("professionals").select("id,name").eq("business_id", membership.business_id).eq("active", true).order("name"),
     supabase.from("blocked_times").select("id,professional_id,starts_at,ends_at,reason,professionals(name)").eq("business_id", membership.business_id).gte("ends_at", new Date().toISOString()).order("starts_at").limit(30),
   ]);
-  const professionalId = (pros.data ?? []).some((professional) => professional.id === query.professional) ? query.professional : undefined;
+  const ownProfessional = await supabase.from("professionals").select("id,name").eq("business_id", membership.business_id).eq("user_id", membership.user_id).eq("active", true).maybeSingle();
+  const professionalId = query.professional === "all"
+    ? undefined
+    : (pros.data ?? []).some((professional) => professional.id === query.professional)
+      ? query.professional
+      : ownProfessional.data?.id;
   const visibleProfessionals = professionalId ? (pros.data ?? []).filter((professional) => professional.id === professionalId) : (pros.data ?? []);
   const [rows, dayBlocks, workingHours, recurringBlocks] = await Promise.all([
     getAppointmentsForDate(membership.business_id, date, timezone, professionalId),
@@ -28,6 +33,6 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
     supabase.from("working_hours").select("professional_id,weekday,start_time,end_time").eq("business_id", membership.business_id).eq("active", true),
     supabase.from("recurring_blocks").select("professional_id,weekday,start_time,end_time").eq("business_id", membership.business_id).eq("active", true),
   ]);
-  const basePath = professionalId ? `/painel/agenda?professional=${professionalId}&date=` : "/painel/agenda";
-  return <><header className="page-header"><div><p className="eyebrow">Agenda</p><h1>Agenda da equipe</h1><p className="muted">Visualize o dia e clique em um horário livre para bloqueá-lo.</p></div><form className="agenda-filter"><input type="hidden" name="date" value={date} /><select name="professional" defaultValue={professionalId ?? ""}><option value="">Todos os profissionais</option>{(pros.data ?? []).map((professional) => <option key={professional.id} value={professional.id}>{professional.name}</option>)}</select><button className="button-ghost">Filtrar</button></form></header><Notice error={query.error} /><VisualAgenda appointments={rows} blockedTimes={dayBlocks.data ?? []} professionals={visibleProfessionals} workingHours={workingHours.data ?? []} recurringBlocks={recurringBlocks.data ?? []} timezone={timezone} date={date} basePath={basePath} /><BlockedTimesPanel professionals={pros.data ?? []} blockedTimes={(upcomingBlocks.data ?? []) as unknown as Parameters<typeof BlockedTimesPanel>[0]["blockedTimes"]} timezone={timezone} /></>;
+  const basePath = professionalId ? `/painel/agenda?professional=${professionalId}&date=` : "/painel/agenda?professional=all&date=";
+  return <><header className="page-header"><div><p className="eyebrow">Agenda</p><h1>{professionalId === ownProfessional.data?.id ? "Minha agenda" : "Agenda da equipe"}</h1><p className="muted">Acompanhe os atendimentos e bloqueie períodos quando precisar.</p></div><form className="agenda-filter"><input type="hidden" name="date" value={date} /><select name="professional" defaultValue={professionalId ?? "all"}>{ownProfessional.data && <option value={ownProfessional.data.id}>Minha agenda</option>}<option value="all">Equipe completa</option>{(pros.data ?? []).filter((professional) => professional.id !== ownProfessional.data?.id).map((professional) => <option key={professional.id} value={professional.id}>{professional.name}</option>)}</select><button className="button-ghost">Visualizar</button></form></header><Notice error={query.error} /><VisualAgenda appointments={rows} blockedTimes={dayBlocks.data ?? []} professionals={visibleProfessionals} workingHours={workingHours.data ?? []} recurringBlocks={recurringBlocks.data ?? []} timezone={timezone} date={date} basePath={basePath} /><BlockedTimesPanel professionals={pros.data ?? []} blockedTimes={(upcomingBlocks.data ?? []) as unknown as Parameters<typeof BlockedTimesPanel>[0]["blockedTimes"]} timezone={timezone} /></>;
 }

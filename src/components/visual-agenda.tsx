@@ -55,12 +55,6 @@ function timeToMinutes(value: string) {
   return hour * 60 + minute;
 }
 
-function toDateTimeLocal(date: string, minutes: number) {
-  const hour = Math.floor(minutes / 60).toString().padStart(2, "0");
-  const minute = (minutes % 60).toString().padStart(2, "0");
-  return `${date}T${hour}:${minute}`;
-}
-
 export function VisualAgenda({ appointments, blockedTimes, professionals, workingHours, recurringBlocks, timezone, date, basePath }: {
   appointments: Appointment[];
   blockedTimes: BlockedTime[];
@@ -72,19 +66,12 @@ export function VisualAgenda({ appointments, blockedTimes, professionals, workin
   basePath: string;
 }) {
   const weekday = new Date(`${date}T12:00:00Z`).getUTCDay();
-  const [selection, setSelection] = useState<{ professionalId: string; start: number; end: number } | null>(null);
+  const [blockOpen, setBlockOpen] = useState(false);
   const dayLabel = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "long", timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`));
+  const today = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: timezone }).format(new Date());
   const slots = useMemo(() => Array.from({ length: SLOT_COUNT }, (_, index) => START_HOUR * 60 + index * SLOT_MINUTES), []);
   const isWorking = (professionalId: string, minutes: number) => workingHours.some((range) => range.professional_id === professionalId && range.weekday === weekday && minutes >= timeToMinutes(range.start_time) && minutes + SLOT_MINUTES <= timeToMinutes(range.end_time));
   const isRecurringBlock = (professionalId: string, minutes: number) => recurringBlocks.some((range) => range.professional_id === professionalId && range.weekday === weekday && minutes < timeToMinutes(range.end_time) && minutes + SLOT_MINUTES > timeToMinutes(range.start_time));
-  const hasEvent = (professionalId: string, minutes: number) => [
-    ...appointments.filter((appointment) => appointment.status !== "CANCELLED"),
-    ...blockedTimes,
-  ].some((event) => event.professional_id === professionalId && minutes < localMinutes(event.ends_at, timezone) && minutes + SLOT_MINUTES > localMinutes(event.starts_at, timezone));
-  const selectSlot = (professionalId: string, minutes: number) => {
-    if (!isWorking(professionalId, minutes) || isRecurringBlock(professionalId, minutes) || hasEvent(professionalId, minutes)) return;
-    setSelection({ professionalId, start: minutes, end: minutes + SLOT_MINUTES });
-  };
   const gridStyle = { gridTemplateColumns: `72px repeat(${Math.max(professionals.length, 1)}, minmax(150px, 1fr))`, gridTemplateRows: `52px repeat(${SLOT_COUNT}, 34px)` };
 
   return <>
@@ -96,12 +83,13 @@ export function VisualAgenda({ appointments, blockedTimes, professionals, workin
         </div>
         <div className="date-nav">
           <Link aria-label="Dia anterior" href={dateHref(basePath, shiftDate(date, -1))}>←</Link>
-          <Link href={basePath.split("?")[0]}>Hoje</Link>
+          <Link href={dateHref(basePath, today)}>Hoje</Link>
           <Link aria-label="Próximo dia" href={dateHref(basePath, shiftDate(date, 1))}>→</Link>
           <label className="calendar-date-input">Ir para<input type="date" value={date} onChange={(event) => { window.location.href = dateHref(basePath, event.target.value); }} /></label>
+          <button type="button" className="button calendar-block-button" onClick={() => setBlockOpen(true)}>＋ Bloquear horário</button>
         </div>
       </div>
-      <div className="calendar-legend"><span className="legend-dot booked" /> Agendado <span className="legend-dot blocked" /> Bloqueado <span className="legend-dot off" /> Fora do expediente</div>
+      <div className="calendar-subbar"><div className="calendar-legend"><span className="legend-dot booked" /> Agendado <span className="legend-dot blocked" /> Bloqueado <span className="legend-dot off" /> Fora do expediente</div><div className="calendar-summary"><strong>{appointments.filter((item) => item.status !== "CANCELLED").length}</strong> atendimentos <strong>{blockedTimes.length}</strong> bloqueios</div></div>
       <div className="calendar-scroll">
         <div className="time-grid" style={gridStyle}>
           <div className="grid-corner" />
@@ -110,13 +98,8 @@ export function VisualAgenda({ appointments, blockedTimes, professionals, workin
           {professionals.flatMap((professional, professionalIndex) => slots.map((minutes, slotIndex) => {
             const working = isWorking(professional.id, minutes);
             const recurring = isRecurringBlock(professional.id, minutes);
-            const occupied = hasEvent(professional.id, minutes);
-            return <button
-              type="button"
-              aria-label={`${professional.name}, ${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, "0")}`}
+            return <div
               className={`calendar-slot ${!working ? "off-hours" : ""} ${recurring ? "recurring" : ""}`}
-              disabled={!working || recurring || occupied}
-              onClick={() => selectSlot(professional.id, minutes)}
               style={{ gridColumn: professionalIndex + 2, gridRow: slotIndex + 2 }}
               key={`${professional.id}-${minutes}`}
             />;
@@ -148,19 +131,20 @@ export function VisualAgenda({ appointments, blockedTimes, professionals, workin
           })}
         </div>
       </div>
-      {!appointments.length && !blockedTimes.length && <p className="calendar-empty">Nenhum agendamento neste dia. Clique em um horário livre para criar um bloqueio.</p>}
+      {!appointments.length && !blockedTimes.length && <p className="calendar-empty">Dia livre até agora. Use o botão “Bloquear horário” quando precisar reservar um período.</p>}
     </section>
-
-    {selection && <section className="quick-block-card" aria-live="polite">
-      <div><p className="eyebrow">Bloqueio rápido</p><h3>{professionals.find((professional) => professional.id === selection.professionalId)?.name}</h3><p>{date.split("-").reverse().join("/")} · {toDateTimeLocal(date, selection.start).slice(-5)} às {toDateTimeLocal(date, selection.end).slice(-5)}</p></div>
-      <form action={createBlockedTime} className="quick-block-form">
-        <input type="hidden" name="professional_id" value={selection.professionalId} />
-        <input type="hidden" name="starts_at" value={toDateTimeLocal(date, selection.start)} />
-        <label>Duração<select value={selection.end - selection.start} onChange={(event) => setSelection({ ...selection, end: selection.start + Number(event.target.value) })}><option value="30">30 min</option><option value="60">1 hora</option><option value="90">1h30</option><option value="120">2 horas</option><option value="240">Meio período</option></select></label>
-        <input type="hidden" name="ends_at" value={toDateTimeLocal(date, selection.end)} />
-        <label>Motivo<input name="reason" maxLength={500} placeholder="Ex.: compromisso pessoal" /></label>
-        <div className="card-actions"><button type="button" className="button-ghost" onClick={() => setSelection(null)}>Cancelar</button><SubmitButton>Bloquear horário</SubmitButton></div>
+    {blockOpen && <div className="block-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setBlockOpen(false); }}><section className="block-dialog" role="dialog" aria-modal="true" aria-labelledby="block-title">
+      <button type="button" className="dialog-close" aria-label="Fechar" onClick={() => setBlockOpen(false)}>×</button>
+      <div className="block-dialog-heading"><span>▦</span><div><p className="eyebrow">Nova indisponibilidade</p><h2 id="block-title">Qual horário você quer bloquear?</h2><p>Escolha o dia e informe de que horas até que horas ficará indisponível.</p></div></div>
+      <form action={createBlockedTime} className="block-dialog-form">
+        {professionals.length === 1 ? <input type="hidden" name="professional_id" value={professionals[0].id} /> : <label className="full-field"><span>Agenda de quem?</span><select name="professional_id" required>{professionals.map((professional) => <option value={professional.id} key={professional.id}>{professional.name}</option>)}</select></label>}
+        <label className="full-field"><span>Qual dia?</span><input name="date" type="date" min={today} defaultValue={date < today ? today : date} required /></label>
+        <label><span>De que horas?</span><input name="start_time" type="time" step="1800" defaultValue="09:00" required /></label>
+        <label><span>Até que horas?</span><input name="end_time" type="time" step="1800" defaultValue="10:00" required /></label>
+        <label className="full-field"><span>Motivo <small>(opcional)</small></span><input name="reason" maxLength={500} placeholder="Ex.: almoço, compromisso ou reunião" /></label>
+        <div className="block-dialog-tip"><strong>Importante:</strong> horários fora do expediente, durante o almoço ou já ocupados não poderão ser bloqueados novamente.</div>
+        <div className="dialog-actions"><button type="button" className="button-ghost" onClick={() => setBlockOpen(false)}>Cancelar</button><SubmitButton pendingText="Bloqueando...">Confirmar bloqueio</SubmitButton></div>
       </form>
-    </section>}
+    </section></div>}
   </>;
 }
