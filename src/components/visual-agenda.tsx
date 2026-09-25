@@ -94,7 +94,7 @@ export function VisualAgenda({ appointments, blockedTimes, professionals, workin
         <div className="time-grid" style={gridStyle}>
           <div className="grid-corner" />
           {professionals.map((professional, index) => <div className="professional-heading" style={{ gridColumn: index + 2, gridRow: 1 }} key={professional.id}><span>{professional.name.slice(0, 1)}</span><strong>{professional.name}</strong></div>)}
-          {slots.map((minutes, slotIndex) => <div className="time-label" style={{ gridColumn: 1, gridRow: slotIndex + 2 }} key={minutes}>{minutes % 60 === 0 ? `${String(Math.floor(minutes / 60)).padStart(2, "0")}:00` : ""}</div>)}
+          {slots.map((minutes, slotIndex) => <div className={`time-label ${minutes % 60 ? "half-hour" : "full-hour"}`} style={{ gridColumn: 1, gridRow: slotIndex + 2 }} key={minutes}>{String(Math.floor(minutes / 60)).padStart(2, "0")}:{String(minutes % 60).padStart(2, "0")}</div>)}
           {professionals.flatMap((professional, professionalIndex) => slots.map((minutes, slotIndex) => {
             const working = isWorking(professional.id, minutes);
             const recurring = isRecurringBlock(professional.id, minutes);
