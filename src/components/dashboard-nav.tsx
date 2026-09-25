@@ -2,7 +2,7 @@ import Link from "next/link";
 import { logout } from "@/app/actions/auth";
 import type { Membership } from "@/types/domain";
 
-export function DashboardNav({ membership }: { membership: Membership }) {
+export function DashboardNav({ membership, unreadCount = 0 }: { membership: Membership; unreadCount?: number }) {
   const owner = membership.role === "OWNER";
   return (
     <aside className="sidebar">
@@ -14,10 +14,12 @@ export function DashboardNav({ membership }: { membership: Membership }) {
           <Link href="/painel/profissionais">Profissionais</Link>
           <Link href="/painel/servicos">Serviços</Link>
           <Link href="/painel/clientes">Clientes</Link>
+          <Link href="/painel/notificacoes" className="nav-notification-link">Notificações{unreadCount > 0 && <span>{unreadCount > 99 ? "99+" : unreadCount}</span>}</Link>
           <Link href="/painel/configuracoes">Configurações</Link>
         </> : <>
           <Link href="/painel/minha-agenda">Minha agenda</Link>
           <Link href="/painel/meus-horarios">Meus horários</Link>
+          <Link href="/painel/notificacoes" className="nav-notification-link">Notificações{unreadCount > 0 && <span>{unreadCount > 99 ? "99+" : unreadCount}</span>}</Link>
         </>}
       </nav>
       <form action={logout}><button className="sidebar-logout">Sair</button></form>

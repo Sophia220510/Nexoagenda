@@ -333,6 +333,24 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_events: {
+        Row: { business_id: string; created_at: string; entity_id: string | null; entity_type: string; id: string; kind: string; message: string; metadata: Json; professional_id: string | null; title: string }
+        Insert: { business_id: string; created_at?: string; entity_id?: string | null; entity_type: string; id?: string; kind: string; message: string; metadata?: Json; professional_id?: string | null; title: string }
+        Update: { business_id?: string; created_at?: string; entity_id?: string | null; entity_type?: string; id?: string; kind?: string; message?: string; metadata?: Json; professional_id?: string | null; title?: string }
+        Relationships: [
+          { foreignKeyName: "notification_events_business_id_fkey"; columns: ["business_id"]; isOneToOne: false; referencedRelation: "businesses"; referencedColumns: ["id"] },
+          { foreignKeyName: "notification_events_professional_id_business_id_fkey"; columns: ["professional_id", "business_id"]; isOneToOne: false; referencedRelation: "professionals"; referencedColumns: ["id", "business_id"] },
+        ]
+      }
+      notification_reads: {
+        Row: { notification_id: string; read_at: string; user_id: string }
+        Insert: { notification_id: string; read_at?: string; user_id: string }
+        Update: { notification_id?: string; read_at?: string; user_id?: string }
+        Relationships: [
+          { foreignKeyName: "notification_reads_notification_id_fkey"; columns: ["notification_id"]; isOneToOne: false; referencedRelation: "notification_events"; referencedColumns: ["id"] },
+          { foreignKeyName: "notification_reads_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+        ]
+      }
       platform_admins: {
         Row: {
           active: boolean
