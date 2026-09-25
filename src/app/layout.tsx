@@ -13,7 +13,7 @@ const display = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: { default: "NexoAgenda", template: "%s | NexoAgenda" },
+  title: { default: "NEXO Agenda", template: "%s | NEXO Agenda" },
   description: "Agenda inteligente para negócios e profissionais.",
 };
 

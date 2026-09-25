@@ -72,6 +72,46 @@ do $$ begin
   if (select count(*) from public.recurring_blocks) <> 1 then raise exception 'Recurring block scope failed'; end if;
 end $$;
 
+-- OWNER operational flow: create with snapshots, reschedule and cancel.
+select set_config('request.jwt.claim.sub','a0000000-0000-4000-8000-000000000001',true);
+do $$
+declare v_id uuid;
+begin
+  v_id := public.book_internal_appointment(
+    'a2000000-0000-4000-8000-000000000001',
+    'a3000000-0000-4000-8000-000000000001',
+    '2030-01-07 12:00Z',
+    'a4000000-0000-4000-8000-000000000001', null, null, 'Teste operacional'
+  );
+  if not exists (
+    select 1 from public.appointments where id = v_id and appointment_source = 'OWNER'
+      and price_cents_snapshot = 3100 and duration_minutes_snapshot = 40
+  ) then raise exception 'Internal booking snapshot/source failed'; end if;
+  perform public.reschedule_appointment(v_id, 'a2000000-0000-4000-8000-000000000001', '2030-01-07 12:15Z');
+  if (select starts_at from public.appointments where id = v_id) <> '2030-01-07 12:15Z'::timestamptz then
+    raise exception 'Reschedule failed';
+  end if;
+  perform public.set_appointment_status(v_id, 'CANCELLED', 'Teste');
+  if not exists (select 1 from public.appointments where id = v_id and status = 'CANCELLED' and cancelled_at is not null) then
+    raise exception 'Cancellation audit failed';
+  end if;
+end $$;
+
+-- PROFESSIONAL cannot invoke OWNER-only operational RPCs.
+select set_config('request.jwt.claim.sub','a0000000-0000-4000-8000-000000000002',true);
+do $$ begin
+  begin
+    perform public.book_internal_appointment(
+      'a2000000-0000-4000-8000-000000000001',
+      'a3000000-0000-4000-8000-000000000001',
+      '2030-01-07 14:00Z',
+      'a4000000-0000-4000-8000-000000000001', null, null, null
+    );
+    raise exception 'Professional created internal appointment';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+
 set local role anon;
 select set_config('request.jwt.claim.sub','',true);
 do $$ begin

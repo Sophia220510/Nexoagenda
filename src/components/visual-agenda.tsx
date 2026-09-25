@@ -111,11 +111,11 @@ export function VisualAgenda({ appointments, blockedTimes, professionals, workin
             const end = localMinutes(appointment.ends_at, timezone);
             const row = 2 + Math.max(0, Math.floor((start - START_HOUR * 60) / SLOT_MINUTES));
             const span = Math.max(1, Math.ceil((end - Math.max(start, START_HOUR * 60)) / SLOT_MINUTES));
-            return <article className={`calendar-event appointment-event status-${appointment.status.toLowerCase()}`} style={{ gridColumn: column, gridRow: `${row} / span ${span}` }} key={appointment.id}>
+            return <Link href={`/painel/agendamentos/${appointment.id}`} className={`calendar-event appointment-event status-${appointment.status.toLowerCase()}`} style={{ gridColumn: column, gridRow: `${row} / span ${span}` }} key={appointment.id}>
               <strong>{shortTime(appointment.starts_at, timezone)} · {appointment.customers?.name}</strong>
               <span>{appointment.services?.name}</span>
               <small>{appointment.customers?.phone}</small>
-            </article>;
+            </Link>;
           })}
           {blockedTimes.map((blocked) => {
             const column = professionals.findIndex((professional) => professional.id === blocked.professional_id) + 2;
@@ -130,6 +130,13 @@ export function VisualAgenda({ appointments, blockedTimes, professionals, workin
             </article>;
           })}
         </div>
+      </div>
+      <div className="mobile-agenda-timeline">
+        {slots.map((minutes) => {
+          const slotAppointments = appointments.filter((item) => localMinutes(item.starts_at, timezone) === minutes);
+          const slotBlocks = blockedTimes.filter((item) => localMinutes(item.starts_at, timezone) === minutes);
+          return <div className="mobile-time-row" key={minutes}><time>{String(Math.floor(minutes / 60)).padStart(2, "0")}:{String(minutes % 60).padStart(2, "0")}</time><div>{slotAppointments.map((item) => <Link href={`/painel/agendamentos/${item.id}`} className={`mobile-event status-${item.status.toLowerCase()}`} key={item.id}><strong>{item.customers?.name}</strong><span>{item.services?.name} · {item.professionals?.name}</span></Link>)}{slotBlocks.map((item) => <article className="mobile-event is-blocked" key={item.id}><strong>Bloqueado</strong><span>{item.reason || "Indisponível"}</span></article>)}{!slotAppointments.length && !slotBlocks.length && <span className="mobile-free">Livre</span>}</div></div>;
+        })}
       </div>
       {!appointments.length && !blockedTimes.length && <p className="calendar-empty">Dia livre até agora. Use o botão “Bloquear horário” quando precisar reservar um período.</p>}
     </section>

@@ -1,27 +1,35 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireMembership } from "@/lib/auth";
+import { addDays, startOfMonth, startOfWeek } from "date-fns";
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
+import { CalendarDays, CalendarPlus, ContactRound, ExternalLink, LockKeyhole, Scissors, UserPlus } from "lucide-react";
+import { requireMembership, getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { formatDateTime } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
 
 export default async function DashboardPage() {
-  const membership = await requireMembership();
-  if (membership.role === "PROFESSIONAL") redirect("/painel/minha-agenda");
-  const supabase = await createClient();
-  const today = new Date();
-  const tomorrow = new Date(today); tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-  const [professionals, services, appointments] = await Promise.all([
-    supabase.from("professionals").select("id", { count: "exact", head: true }).eq("business_id", membership.business_id).eq("active", true),
-    supabase.from("services").select("id", { count: "exact", head: true }).eq("business_id", membership.business_id).eq("active", true),
-    supabase.from("appointments").select("id,starts_at,status,customers(name),services(name),professionals(name)").eq("business_id", membership.business_id).gte("starts_at", today.toISOString().slice(0, 10)).lt("starts_at", tomorrow.toISOString().slice(0, 10)).neq("status", "CANCELLED").order("starts_at").limit(8),
+  const membership = await requireMembership(); if (membership.role === "PROFESSIONAL") redirect("/painel/minha-agenda");
+  const timezone = membership.businesses?.timezone ?? "America/Sao_Paulo"; const now = new Date();
+  const todayLabel = formatInTimeZone(now, timezone, "yyyy-MM-dd"); const dayStart = fromZonedTime(`${todayLabel} 00:00:00`, timezone); const dayEnd = addDays(dayStart, 1);
+  const weekStart = startOfWeek(dayStart, { weekStartsOn: 1 }); const weekEnd = addDays(weekStart, 7); const monthStart = startOfMonth(dayStart); const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 1);
+  const supabase = await createClient(); const user = await getCurrentUser();
+  const [today, week, monthAppointments, newCustomers, working] = await Promise.all([
+    supabase.from("appointments").select("id,starts_at,ends_at,status,duration_minutes_snapshot,customers(name),services(name,price_cents,default_duration_minutes),professionals(name)", { count: "exact" }).eq("business_id", membership.business_id).gte("starts_at", dayStart.toISOString()).lt("starts_at", dayEnd.toISOString()).neq("status", "CANCELLED").order("starts_at"),
+    supabase.from("appointments").select("id", { count: "exact", head: true }).eq("business_id", membership.business_id).gte("starts_at", weekStart.toISOString()).lt("starts_at", weekEnd.toISOString()).neq("status", "CANCELLED"),
+    supabase.from("appointments").select("id,customer_id,status,price_cents_snapshot,duration_minutes_snapshot,services(price_cents,default_duration_minutes)").eq("business_id", membership.business_id).gte("starts_at", monthStart.toISOString()).lt("starts_at", monthEnd.toISOString()).neq("status", "CANCELLED"),
+    supabase.from("customers").select("id", { count: "exact", head: true }).eq("business_id", membership.business_id).gte("created_at", monthStart.toISOString()).lt("created_at", monthEnd.toISOString()),
+    supabase.from("working_hours").select("start_time,end_time").eq("business_id", membership.business_id).eq("active", true),
   ]);
-  const timezone = membership.businesses?.timezone ?? "America/Sao_Paulo";
+  const monthRows = monthAppointments.data ?? []; const uniqueCustomers = new Set(monthRows.map((row) => row.customer_id)).size;
+  const scheduledValue = monthRows.reduce((sum, row) => sum + (row.price_cents_snapshot ?? (row.services as unknown as { price_cents: number } | null)?.price_cents ?? 0), 0);
+  const bookedMinutes = monthRows.reduce((sum, row) => sum + (row.duration_minutes_snapshot ?? (row.services as unknown as { default_duration_minutes: number } | null)?.default_duration_minutes ?? 0), 0); const weeklyCapacity = (working.data ?? []).reduce((sum, range) => { const [sh, sm] = range.start_time.split(":").map(Number); const [eh, em] = range.end_time.split(":").map(Number); return sum + Math.max(0, eh * 60 + em - sh * 60 - sm); }, 0); const occupancy = weeklyCapacity ? Math.min(100, Math.round((bookedMinutes / Math.max(weeklyCapacity * 4, 1)) * 100)) : 0;
+  const hour = Number(formatInTimeZone(now, timezone, "H")); const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite"; const name = user?.user_metadata?.full_name?.split(" ")[0] ?? "";
+  const upcoming = (today.data ?? []).filter((item) => new Date(item.ends_at) >= now);
   return <>
-    <header className="page-header"><div><p className="eyebrow">Visão geral</p><h1>Olá, vamos organizar o dia.</h1></div><Link className="button" href={`/${membership.businesses?.slug}/agendar`}>Abrir agendamento</Link></header>
-    <section className="stat-grid"><article><span>Hoje</span><strong>{appointments.data?.length ?? 0}</strong><small>agendamentos ativos</small></article><article><span>Equipe</span><strong>{professionals.count ?? 0}</strong><small>profissionais ativos</small></article><article><span>Catálogo</span><strong>{services.count ?? 0}</strong><small>serviços ativos</small></article></section>
-    <section className="panel-card"><div className="section-title"><h2>Próximos de hoje</h2><Link href="/painel/agenda">Ver agenda</Link></div>
-      {!appointments.data?.length ? <p className="empty">Nenhum agendamento para hoje.</p> : <div className="list">{appointments.data.map((item) => <article className="list-row" key={item.id}><div><strong>{formatDateTime(item.starts_at, timezone)}</strong><p>{(item.customers as unknown as { name: string } | null)?.name}</p></div><div className="align-right"><span>{(item.services as unknown as { name: string } | null)?.name}</span><small>{(item.professionals as unknown as { name: string } | null)?.name}</small></div></article>)}</div>}
-    </section>
+    <header className="owner-hero"><div><p className="eyebrow">Visão geral</p><h1>{greeting}{name ? `, ${name}` : ""}.</h1><p>{new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "long", timeZone: timezone }).format(now)}</p></div><div><Link className="button-ghost" href="/painel/agenda"><LockKeyhole size={18} /> Bloquear horário</Link><Link className="button" href="/painel/agendamentos/novo"><CalendarPlus size={18} /> Novo agendamento</Link></div></header>
+    <section className="metric-grid"><article><span>Agendamentos hoje</span><strong>{today.count ?? 0}</strong><small>atendimentos ativos</small></article><article><span>Esta semana</span><strong>{week.count ?? 0}</strong><small>agendamentos confirmados</small></article><article><span>Clientes no mês</span><strong>{uniqueCustomers}</strong><small>{newCustomers.count ?? 0} novos clientes</small></article><article><span>Ocupação estimada</span><strong>{occupancy}%</strong><small>sobre horas configuradas</small></article><article className="metric-wide"><span>Valor agendado no mês</span><strong>{formatCurrency(scheduledValue)}</strong><small>Estimativa pelos serviços; não representa pagamentos recebidos.</small></article></section>
+    <div className="dashboard-columns"><section className="dashboard-panel"><div className="section-title"><div><p className="eyebrow">Hoje</p><h2>Próximos atendimentos</h2></div><Link href="/painel/agenda">Ver agenda</Link></div>{upcoming.length ? <div className="timeline">{upcoming.slice(0, 7).map((item) => { const customer = item.customers as unknown as { name: string }; const service = item.services as unknown as { name: string; default_duration_minutes: number }; const professional = item.professionals as unknown as { name: string }; return <Link href={`/painel/agendamentos/${item.id}`} key={item.id}><time>{formatInTimeZone(item.starts_at, timezone, "HH:mm")}</time><span /><div><strong>{customer?.name}</strong><p>{service?.name} · {professional?.name}</p><small>{item.duration_minutes_snapshot ?? service?.default_duration_minutes} min</small></div></Link>; })}</div> : <div className="empty-state compact"><CalendarDays /><h3>Nenhum atendimento restante hoje</h3><p>A agenda está livre. Você pode incluir um atendimento manual.</p><Link className="button-ghost" href="/painel/agendamentos/novo">Criar agendamento</Link></div>}</section>
+      <aside className="dashboard-panel quick-actions"><div className="section-title"><div><p className="eyebrow">Atalhos</p><h2>Ações rápidas</h2></div></div><Link href="/painel/agendamentos/novo"><CalendarPlus /><span><strong>Novo agendamento</strong><small>Cadastre telefone ou balcão</small></span></Link><Link href="/painel/clientes"><ContactRound /><span><strong>Clientes</strong><small>Acesse histórico e contatos</small></span></Link><Link href="/painel/profissionais"><UserPlus /><span><strong>Adicionar profissional</strong><small>Organize sua equipe</small></span></Link><Link href="/painel/servicos"><Scissors /><span><strong>Criar serviço</strong><small>Preço, duração e equipe</small></span></Link><Link href={`/${membership.businesses?.slug}`} target="_blank"><ExternalLink /><span><strong>Abrir página pública</strong><small>Veja como seu cliente vê</small></span></Link></aside>
+    </div>
   </>;
 }
-

@@ -57,12 +57,18 @@ export type Database = {
       }
       appointments: {
         Row: {
+          appointment_source: string
           business_id: string
+          cancellation_reason: string | null
+          cancelled_at: string | null
           created_at: string
+          created_by_user_id: string | null
           customer_id: string
+          duration_minutes_snapshot: number | null
           ends_at: string
           id: string
           notes: string | null
+          price_cents_snapshot: number | null
           professional_id: string
           public_idempotency_key: string | null
           service_id: string
@@ -71,12 +77,18 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          appointment_source?: string
           business_id: string
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
           created_at?: string
+          created_by_user_id?: string | null
           customer_id: string
+          duration_minutes_snapshot?: number | null
           ends_at: string
           id?: string
           notes?: string | null
+          price_cents_snapshot?: number | null
           professional_id: string
           public_idempotency_key?: string | null
           service_id: string
@@ -85,12 +97,18 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          appointment_source?: string
           business_id?: string
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
           created_at?: string
+          created_by_user_id?: string | null
           customer_id?: string
+          duration_minutes_snapshot?: number | null
           ends_at?: string
           id?: string
           notes?: string | null
+          price_cents_snapshot?: number | null
           professional_id?: string
           public_idempotency_key?: string | null
           service_id?: string
@@ -268,6 +286,7 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          notes: string | null
           phone: string
           updated_at: string
         }
@@ -276,6 +295,7 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          notes?: string | null
           phone: string
           updated_at?: string
         }
@@ -284,6 +304,7 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          notes?: string | null
           phone?: string
           updated_at?: string
         }
@@ -644,6 +665,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      book_internal_appointment: {
+        Args: { p_customer_id?: string; p_customer_name?: string; p_customer_phone?: string; p_notes?: string; p_professional_id: string; p_service_id: string; p_starts_at: string }
+        Returns: string
+      }
       admin_create_business_bundle: { Args: { p_bundle: Json }; Returns: string }
       complete_password_change: { Args: never; Returns: undefined }
       admin_update_business: {
@@ -694,6 +719,10 @@ export type Database = {
         }
         Returns: string
       }
+      reschedule_appointment: { Args: { p_appointment_id: string; p_professional_id: string; p_starts_at: string }; Returns: undefined }
+      set_appointment_status: { Args: { p_appointment_id: string; p_cancellation_reason?: string; p_status: Database["public"]["Enums"]["appointment_status"] }; Returns: undefined }
+      update_appointment_note: { Args: { p_appointment_id: string; p_notes: string }; Returns: undefined }
+      update_customer_notes: { Args: { p_customer_id: string; p_notes: string }; Returns: undefined }
       configure_professional: {
         Args: {
           p_mark_complete?: boolean

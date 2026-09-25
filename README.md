@@ -54,7 +54,7 @@ Confira o project ref antes de confirmar o push. `supabase/seed.sql` contém dad
 
 ### Estado do projeto hospedado
 
-As sete migrations versionadas foram aplicadas ao projeto `omgjtfdkpfopcnmyggxh`. Auditorias transacionais de isolamento, username e criação administrativa foram executadas no banco hospedado e passaram sem deixar dados de teste. O `.env.local` permanece ignorado pelo Git.
+As onze migrations versionadas foram aplicadas ao projeto `omgjtfdkpfopcnmyggxh`. Auditorias transacionais de isolamento, username, criação administrativa e operações de appointment foram executadas no banco hospedado e passaram sem deixar dados de teste. O `.env.local` permanece ignorado pelo Git.
 
 ## Master Admin e ambiente demo
 
@@ -81,8 +81,8 @@ O bootstrap cria/atualiza `barbearia-nexo-demo`, Lucas (OWNER), Rafael e Pedro (
 - `working_hours`: faixas locais recorrentes, permitindo turnos separados.
 - `blocked_times`: intervalos absolutos indisponíveis.
 - `recurring_blocks`: intervalos semanais fixos, como almoço.
-- `customers`: clientes sem login; telefone único apenas dentro do tenant.
-- `appointments`: horários absolutos, status e vínculos compostos ao mesmo tenant.
+- `customers`: clientes sem login, telefone único dentro do tenant e notas privadas do proprietário.
+- `appointments`: horários absolutos, status, origem, cancelamento e snapshots históricos de preço/duração.
 - `platform_admins` e `admin_audit_logs`: acesso master separado e trilha de alterações.
 - `login_identities`: username global normalizado, identificador interno do Auth e troca obrigatória de senha; nunca contém senha.
 - `businesses.business_type`: categoria informativa; todas as categorias usam o mesmo modelo multiempresa.
@@ -96,6 +96,10 @@ Todas as entidades privadas têm relação inequívoca com `business_id`. FKs co
 - `get_public_business`: retorna somente o catálogo público mínimo.
 - `get_public_availability`: calcula slots no servidor e retorna apenas timestamps livres.
 - `book_public_appointment`: valida recursos, duração, expediente, bloqueios, telefone e cria cliente/agendamento atomicamente.
+- `book_internal_appointment`: cria agendamento manual de OWNER derivando o tenant de `auth.uid()` e usando as mesmas regras reais de disponibilidade.
+- `reschedule_appointment`: move um atendimento de forma transacional sem abrir brecha para double booking.
+- `set_appointment_status`: conclui, marca falta ou cancela, registrando data e motivo do cancelamento.
+- `update_appointment_note` e `update_customer_notes`: atualizam notas com autorização server-side e sem escrita direta ampla nas tabelas.
 - `set_updated_at`: mantém timestamps de alteração.
 - `appointments_no_active_overlap`: exclusion constraint GiST sobre `professional_id` e `tstzrange`; status `CANCELLED` é excluído.
 - `appointments_public_idempotency_uidx`: torna retries da mesma reserva idempotentes.
@@ -111,7 +115,7 @@ RLS está ativa em todas as tabelas públicas. Não há policy `anon` de leitura
 | Horários | gerencia a equipe | lê os próprios | slots calculados por RPC |
 | Bloqueios | gerencia a equipe | gerencia os próprios | sem acesso |
 | Clientes | lê os próprios do tenant | somente clientes de seus appointments | sem acesso |
-| Appointments | lê/atualiza os do tenant | somente os próprios | cria apenas por RPC validada |
+| Appointments | lê os do tenant e opera por RPC autorizada | somente os próprios | cria apenas por RPC validada |
 
 As helpers RLS `is_business_member`, `is_business_owner` e `is_current_professional` são `SECURITY DEFINER`, têm `search_path` fixo e acesso revogado do papel `public`. Elas evitam recursão nas policies sem ampliar o acesso das consultas finais.
 
