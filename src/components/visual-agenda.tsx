@@ -91,6 +91,10 @@ function timeToMinutes(value: string) {
   return hour * 60 + minute;
 }
 
+function minutesToTime(minutes: number) {
+  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+}
+
 export function VisualAgenda({
   appointments,
   blockedTimes,
@@ -101,6 +105,7 @@ export function VisualAgenda({
   date,
   basePath,
   nowIso,
+  canCreateAppointment = false,
 }: {
   appointments: Appointment[];
   blockedTimes: BlockedTime[];
@@ -111,9 +116,16 @@ export function VisualAgenda({
   date: string;
   basePath: string;
   nowIso: string;
+  canCreateAppointment?: boolean;
 }) {
   const weekday = new Date(`${date}T12:00:00Z`).getUTCDay();
   const [blockOpen, setBlockOpen] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState<{
+    professionalId: string;
+    professionalName: string;
+    minutes: number;
+  } | null>(null);
+  const [slotActionsOpen, setSlotActionsOpen] = useState(false);
   const dayLabel = new Intl.DateTimeFormat("pt-BR", {
     weekday: "long",
     day: "2-digit",
@@ -165,6 +177,15 @@ export function VisualAgenda({
   const confirmedAppointments = activeAppointments.filter(
     (item) => item.status === "CONFIRMED",
   ).length;
+  const openFreeSlot = (professional: Professional, minutes: number) => {
+    setSelectedSlot({
+      professionalId: professional.id,
+      professionalName: professional.name,
+      minutes,
+    });
+    if (canCreateAppointment) setSlotActionsOpen(true);
+    else setBlockOpen(true);
+  };
 
   return (
     <>
@@ -206,7 +227,10 @@ export function VisualAgenda({
             <button
               type="button"
               className="button calendar-block-button"
-              onClick={() => setBlockOpen(true)}
+              onClick={() => {
+                setSelectedSlot(null);
+                setBlockOpen(true);
+              }}
             >
               <LockKeyhole size={17} /> Bloquear horário
             </button>
@@ -290,14 +314,20 @@ export function VisualAgenda({
               slots.map((minutes, slotIndex) => {
                 const working = isWorking(professional.id, minutes);
                 const recurring = isRecurringBlock(professional.id, minutes);
+                const past =
+                  date < today || (date === today && minutes <= nowMinutes);
                 return (
-                  <div
-                    className={`calendar-slot ${!working ? "off-hours" : ""} ${recurring ? "recurring" : ""}`}
+                  <button
+                    type="button"
+                    className={`calendar-slot ${!working ? "off-hours" : ""} ${recurring ? "recurring" : ""} ${past ? "past-slot" : ""}`}
                     style={{
                       gridColumn: professionalIndex + 2,
                       gridRow: slotIndex + 2,
                     }}
                     key={`${professional.id}-${minutes}`}
+                    disabled={!working || recurring || past}
+                    aria-label={`${minutesToTime(minutes)}, ${professional.name}${!working || recurring || past ? ", indisponível" : ", horário livre"}`}
+                    onClick={() => openFreeSlot(professional, minutes)}
                   />
                 );
               }),
@@ -414,6 +444,12 @@ export function VisualAgenda({
               showNow &&
               nowMinutes >= minutes &&
               nowMinutes < minutes + SLOT_MINUTES;
+            const singleProfessional = professionals[0];
+            const mobileAvailable =
+              Boolean(singleProfessional) &&
+              isWorking(singleProfessional.id, minutes) &&
+              !isRecurringBlock(singleProfessional.id, minutes) &&
+              !(date < today || (date === today && minutes <= nowMinutes));
             return (
               <div
                 className={`mobile-time-row ${isCurrent ? "is-current" : ""}`}
@@ -446,9 +482,27 @@ export function VisualAgenda({
                       <span>{item.reason || "Indisponível"}</span>
                     </article>
                   ))}
-                  {!slotAppointments.length && !slotBlocks.length && (
-                    <span className="mobile-free">Horário livre</span>
-                  )}
+                  {!slotAppointments.length &&
+                    !slotBlocks.length &&
+                    (professionals.length === 1 &&
+                    singleProfessional &&
+                    mobileAvailable ? (
+                      <button
+                        type="button"
+                        className="mobile-free"
+                        onClick={() =>
+                          openFreeSlot(singleProfessional, minutes)
+                        }
+                      >
+                        Horário livre <span>＋</span>
+                      </button>
+                    ) : (
+                      <span className="mobile-free is-unavailable">
+                        {professionals.length === 1
+                          ? "Indisponível"
+                          : "Sem eventos neste horário"}
+                      </span>
+                    ))}
                 </div>
               </div>
             );
@@ -461,6 +515,59 @@ export function VisualAgenda({
           </p>
         )}
       </section>
+      {slotActionsOpen && selectedSlot && (
+        <div
+          className="block-dialog-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setSlotActionsOpen(false);
+          }}
+        >
+          <section
+            className="slot-action-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="slot-action-title"
+          >
+            <button
+              type="button"
+              className="dialog-close"
+              aria-label="Fechar"
+              onClick={() => setSlotActionsOpen(false)}
+            >
+              ×
+            </button>
+            <p className="eyebrow">Horário livre</p>
+            <h2 id="slot-action-title">O que você quer fazer?</h2>
+            <p>
+              {selectedSlot.professionalName} ·{" "}
+              {minutesToTime(selectedSlot.minutes)} em{" "}
+              {new Intl.DateTimeFormat("pt-BR", {
+                dateStyle: "long",
+                timeZone: "UTC",
+              }).format(new Date(`${date}T12:00:00Z`))}
+            </p>
+            <div className="slot-action-options">
+              <Link
+                className="button"
+                href={`/painel/agendamentos/novo?professional=${selectedSlot.professionalId}&date=${date}&time=${minutesToTime(selectedSlot.minutes)}`}
+              >
+                Criar agendamento
+              </Link>
+              <button
+                type="button"
+                className="button-ghost"
+                onClick={() => {
+                  setSlotActionsOpen(false);
+                  setBlockOpen(true);
+                }}
+              >
+                Bloquear horário
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
       {blockOpen && (
         <div
           className="block-dialog-backdrop"
@@ -499,12 +606,18 @@ export function VisualAgenda({
                 <input
                   type="hidden"
                   name="professional_id"
-                  value={professionals[0].id}
+                  value={selectedSlot?.professionalId ?? professionals[0].id}
                 />
               ) : (
                 <label className="full-field">
                   <span>Agenda de quem?</span>
-                  <select name="professional_id" required>
+                  <select
+                    name="professional_id"
+                    defaultValue={
+                      selectedSlot?.professionalId ?? professionals[0]?.id
+                    }
+                    required
+                  >
                     {professionals.map((professional) => (
                       <option value={professional.id} key={professional.id}>
                         {professional.name}
@@ -529,7 +642,9 @@ export function VisualAgenda({
                   name="start_time"
                   type="time"
                   step="1800"
-                  defaultValue="09:00"
+                  defaultValue={
+                    selectedSlot ? minutesToTime(selectedSlot.minutes) : "09:00"
+                  }
                   required
                 />
               </label>
@@ -539,7 +654,11 @@ export function VisualAgenda({
                   name="end_time"
                   type="time"
                   step="1800"
-                  defaultValue="10:00"
+                  defaultValue={
+                    selectedSlot
+                      ? minutesToTime(selectedSlot.minutes + SLOT_MINUTES)
+                      : "10:00"
+                  }
                   required
                 />
               </label>

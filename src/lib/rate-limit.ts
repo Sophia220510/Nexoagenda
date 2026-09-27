@@ -1,7 +1,12 @@
 import "server-only";
 
-interface Bucket { count: number; resetAt: number }
-const state = globalThis as typeof globalThis & { __nexoBookingBuckets?: Map<string, Bucket> };
+interface Bucket {
+  count: number;
+  resetAt: number;
+}
+const state = globalThis as typeof globalThis & {
+  __nexoBookingBuckets?: Map<string, Bucket>;
+};
 const buckets = state.__nexoBookingBuckets ?? new Map<string, Bucket>();
 state.__nexoBookingBuckets = buckets;
 
@@ -17,3 +22,6 @@ export function allowBookingRequest(key: string, limit = 6, windowMs = 60_000) {
   return true;
 }
 
+export function allowAvailabilityRequest(key: string) {
+  return allowBookingRequest(`availability:${key}`, 60, 60_000);
+}

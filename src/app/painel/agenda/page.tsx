@@ -196,6 +196,7 @@ export default async function AgendaPage({
           date={date}
           basePath={viewBase}
           nowIso={new Date().toISOString()}
+          canCreateAppointment
         />
       ) : (
         <WeeklyAgenda
