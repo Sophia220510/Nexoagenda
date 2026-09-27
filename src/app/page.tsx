@@ -97,7 +97,7 @@ export default function Home() {
         </div>
         <div className="product-preview">
           <header>
-            <span>NEXO Agenda</span>
+            <span>NEXO Book</span>
             <small>Hoje, {todayLabel}</small>
           </header>
           <div className="preview-body">

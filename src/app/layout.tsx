@@ -13,16 +13,27 @@ const display = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: { default: "NEXO Agenda", template: "%s | NEXO Agenda" },
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+  ),
+  title: { default: "NEXO Book", template: "%s | NEXO Book" },
   description: "Agenda inteligente para negócios e profissionais.",
+  applicationName: "NEXO Book",
+  manifest: "/manifest.webmanifest",
+  icons: { icon: "/brand/nexo-mark.png", apple: "/brand/nexo-mark.png" },
+  openGraph: {
+    type: "website",
+    locale: "pt_BR",
+    siteName: "NEXO Book",
+    title: "NEXO Book",
+    description: "Agenda inteligente para negócios e profissionais.",
+    images: ["/brand/nexo-mark.png"],
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="pt-BR"
-      className={`${sans.variable} ${display.variable}`}
-    >
+    <html lang="pt-BR" className={`${sans.variable} ${display.variable}`}>
       <body>{children}</body>
     </html>
   );

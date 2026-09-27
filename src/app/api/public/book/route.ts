@@ -4,13 +4,24 @@ import { createPublicServerClient } from "@/lib/supabase/public-server";
 import { bookingSchema } from "@/lib/validation";
 
 export async function POST(request: Request) {
-  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const forwarded = request.headers
+    .get("x-forwarded-for")
+    ?.split(",")[0]
+    ?.trim();
   const rateKey = forwarded || "unknown";
-  if (!allowBookingRequest(rateKey)) return NextResponse.json({ error: "Muitas tentativas. Aguarde um minuto." }, { status: 429 });
+  if (!allowBookingRequest(rateKey))
+    return NextResponse.json(
+      { error: "Muitas tentativas. Aguarde um minuto." },
+      { status: 429 },
+    );
 
   const body: unknown = await request.json().catch(() => null);
   const parsed = bookingSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  if (!parsed.success)
+    return NextResponse.json(
+      { error: parsed.error.issues[0].message },
+      { status: 400 },
+    );
 
   const supabase = createPublicServerClient();
   const { data, error } = await supabase.rpc("book_public_appointment", {
@@ -24,10 +35,17 @@ export async function POST(request: Request) {
   });
 
   if (error) {
-    const conflict = error.code === "23P01" || error.message.includes("conflict");
+    const conflict =
+      error.code === "23P01" || error.message.includes("conflict");
     const notFound = error.code === "P0002";
     return NextResponse.json(
-      { error: conflict ? "Esse horário acabou de ser reservado. Escolha outro horário." : notFound ? "Serviço ou profissional indisponível." : "Não foi possível confirmar o agendamento." },
+      {
+        error: conflict
+          ? "Esse horário acabou de ser reservado. Escolha outro horário."
+          : notFound
+            ? "Serviço ou profissional indisponível."
+            : "Não foi possível confirmar o agendamento.",
+      },
       { status: conflict ? 409 : notFound ? 404 : 400 },
     );
   }

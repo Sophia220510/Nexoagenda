@@ -1,5 +1,6 @@
-export type MemberRole = "OWNER" | "PROFESSIONAL";
-export type AppointmentStatus = "CONFIRMED" | "CANCELLED" | "COMPLETED" | "NO_SHOW";
+export type MemberRole = "OWNER" | "RECEPTIONIST" | "PROFESSIONAL";
+export type AppointmentStatus =
+  "CONFIRMED" | "CANCELLED" | "COMPLETED" | "NO_SHOW";
 
 export interface Membership {
   id: string;
@@ -14,6 +15,14 @@ export interface Membership {
     logo_url: string | null;
     timezone: string;
     active: boolean;
+    description?: string | null;
+    address?: string | null;
+    instagram_url?: string | null;
+    reminders_enabled?: boolean;
+    reminder_24h_enabled?: boolean;
+    reminder_2h_enabled?: boolean;
+    reminder_template?: string | null;
+    professionals_can_view_commission?: boolean;
   } | null;
 }
 
@@ -39,8 +48,10 @@ export interface PublicBusiness {
   slug: string;
   phone: string;
   logo_url: string | null;
+  description: string | null;
+  address: string | null;
+  instagram_url: string | null;
   timezone: string;
   professionals: PublicProfessional[];
   services: PublicService[];
 }
-

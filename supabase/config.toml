@@ -1,4 +1,4 @@
-project_id = "nexoagenda"
+project_id = "nexo-book"
 
 [api]
 enabled = true

@@ -12,21 +12,25 @@ export const getCurrentUser = cache(async () => {
   return data.user;
 });
 
-export const getCurrentBusiness = cache(async (): Promise<Membership | null> => {
-  const user = await getCurrentUser();
-  if (!user) return null;
+export const getCurrentBusiness = cache(
+  async (): Promise<Membership | null> => {
+    const user = await getCurrentUser();
+    if (!user) return null;
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("business_members")
-    .select("id,business_id,user_id,role,businesses(id,name,slug,phone,logo_url,timezone,active)")
-    .eq("user_id", user.id)
-    .limit(1)
-    .maybeSingle();
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("business_members")
+      .select(
+        "id,business_id,user_id,role,businesses(id,name,slug,phone,logo_url,timezone,active,description,address,instagram_url,reminders_enabled,reminder_24h_enabled,reminder_2h_enabled,reminder_template,professionals_can_view_commission)",
+      )
+      .eq("user_id", user.id)
+      .limit(1)
+      .maybeSingle();
 
-  if (error) throw new Error("Não foi possível carregar a empresa atual.");
-  return data as unknown as Membership | null;
-});
+    if (error) throw new Error("Não foi possível carregar a empresa atual.");
+    return data as unknown as Membership | null;
+  },
+);
 
 export const getIsPlatformAdmin = cache(async () => {
   const user = await getCurrentUser();
@@ -48,10 +52,13 @@ export const getCurrentProfessional = cache(async () => {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("professionals")
-    .select("id,business_id,user_id,name,photo_url,bio,active,setup_completed_at")
+    .select(
+      "id,business_id,user_id,name,photo_url,bio,active,setup_completed_at",
+    )
     .eq("user_id", user.id)
     .maybeSingle();
-  if (error) throw new Error("Não foi possível carregar o perfil profissional.");
+  if (error)
+    throw new Error("Não foi possível carregar o perfil profissional.");
   return data;
 });
 
@@ -62,9 +69,18 @@ export async function requireAuth() {
 }
 
 export async function requirePasswordChanged() {
-  const user=await requireAuth(); const supabase=await createClient(); const {data}=await supabase.from("login_identities").select("must_change_password,active").eq("user_id",user.id).maybeSingle();
-  if(data&&!data.active){await supabase.auth.signOut();redirect("/login");}
-  if(data?.must_change_password)redirect("/trocar-senha");
+  const user = await requireAuth();
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("login_identities")
+    .select("must_change_password,active")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (data && !data.active) {
+    await supabase.auth.signOut();
+    redirect("/login");
+  }
+  if (data?.must_change_password) redirect("/trocar-senha");
   return user;
 }
 
@@ -78,6 +94,18 @@ export async function requireMembership() {
 export async function requireOwner() {
   const membership = await requireMembership();
   if (membership.role !== "OWNER") redirect("/painel/minha-agenda");
+  return membership;
+}
+
+export async function requireOperator() {
+  const membership = await requireMembership();
+  if (
+    !(["OWNER", "RECEPTIONIST"] as const).includes(
+      membership.role as "OWNER" | "RECEPTIONIST",
+    )
+  ) {
+    redirect("/painel/minha-agenda");
+  }
   return membership;
 }
 
@@ -95,6 +123,7 @@ export async function requireProfessional() {
 export async function requireConfiguredProfessional() {
   const membership = await requireProfessional();
   const professional = await getCurrentProfessional();
-  if (!professional?.setup_completed_at) redirect("/painel/configuracao-inicial");
+  if (!professional?.setup_completed_at)
+    redirect("/painel/configuracao-inicial");
   return { membership, professional };
 }

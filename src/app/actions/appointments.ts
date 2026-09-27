@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { fromZonedTime } from "date-fns-tz";
 import { z } from "zod";
-import { requireMembership, requireOwner } from "@/lib/auth";
+import { requireMembership, requireOperator } from "@/lib/auth";
 import { normalizePhone } from "@/lib/phone";
 import { createClient } from "@/lib/supabase/server";
 
@@ -27,7 +27,7 @@ function appointmentError(message = "") {
 }
 
 export async function createInternalAppointment(formData: FormData) {
-  const membership = await requireOwner();
+  const membership = await requireOperator();
   const path = "/painel/agendamentos/novo";
   const parsed = z
     .object({
@@ -106,7 +106,7 @@ export async function setAppointmentStatus(formData: FormData) {
 }
 
 export async function rescheduleAppointment(formData: FormData) {
-  const membership = await requireOwner();
+  const membership = await requireOperator();
   const id = uuid.safeParse(formData.get("appointment_id"));
   const professional = uuid.safeParse(formData.get("professional_id"));
   const starts = dateTime.safeParse(formData.get("starts_at"));
@@ -133,7 +133,7 @@ export async function rescheduleAppointment(formData: FormData) {
 }
 
 export async function updateAppointmentNote(formData: FormData) {
-  await requireOwner();
+  await requireOperator();
   const id = uuid.safeParse(formData.get("appointment_id"));
   const notes = z.string().trim().max(2000).safeParse(formData.get("notes"));
   if (!id.success || !notes.success)
@@ -152,7 +152,7 @@ export async function updateAppointmentNote(formData: FormData) {
 }
 
 export async function updateCustomerNotes(formData: FormData) {
-  await requireOwner();
+  await requireOperator();
   const id = uuid.safeParse(formData.get("customer_id"));
   const notes = z.string().trim().max(4000).safeParse(formData.get("notes"));
   if (!id.success || !notes.success) fail("/painel/clientes", "Nota inválida.");
@@ -166,5 +166,103 @@ export async function updateCustomerNotes(formData: FormData) {
   revalidatePath(`/painel/clientes/${id.data}`);
   redirect(
     `/painel/clientes/${id.data}?success=${encodeURIComponent("Notas salvas.")}`,
+  );
+}
+
+const completionSchema = z.object({
+  appointment_id: uuid,
+  service_ids: z.array(uuid).min(1).max(20),
+  payments: z
+    .array(
+      z.object({
+        amount_cents: z.number().int().positive(),
+        method: z.enum(["PIX", "CASH", "DEBIT_CARD", "CREDIT_CARD", "OTHER"]),
+        notes: z.string().trim().max(500).optional(),
+      }),
+    )
+    .max(10),
+  discount_cents: z.number().int().min(0),
+  discount_reason: z.string().trim().max(500).optional(),
+});
+
+export type CompletionState = { error?: string };
+
+export async function completeAppointment(
+  _state: CompletionState,
+  formData: FormData,
+): Promise<CompletionState> {
+  await requireMembership();
+  let serviceIds: unknown;
+  let payments: unknown;
+  try {
+    serviceIds = JSON.parse(String(formData.get("service_ids") ?? "[]"));
+    payments = JSON.parse(String(formData.get("payments") ?? "[]"));
+  } catch {
+    return { error: "Os dados do atendimento estão inválidos." };
+  }
+  const parsed = completionSchema.safeParse({
+    appointment_id: formData.get("appointment_id"),
+    service_ids: serviceIds,
+    payments,
+    discount_cents: Number(formData.get("discount_cents") ?? 0),
+    discount_reason: String(formData.get("discount_reason") ?? ""),
+  });
+  if (!parsed.success) return { error: "Revise os serviços e pagamentos." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("complete_appointment", {
+    p_appointment_id: parsed.data.appointment_id,
+    p_service_ids: parsed.data.service_ids,
+    p_payments: parsed.data.payments,
+    p_discount_cents: parsed.data.discount_cents,
+    p_discount_reason: parsed.data.discount_reason || undefined,
+  });
+  if (error) {
+    if (error.message.includes("appointment_already_resolved"))
+      return { error: "Este atendimento já foi confirmado por outra pessoa." };
+    if (error.message.includes("payment_exceeds_total"))
+      return { error: "O valor recebido não pode ser maior que o total." };
+    if (error.message.includes("appointment_not_finished"))
+      return { error: "O horário deste atendimento ainda não terminou." };
+    return { error: "Não foi possível concluir o atendimento com segurança." };
+  }
+  revalidatePath("/painel");
+  revalidatePath("/painel/minha-agenda");
+  revalidatePath("/painel/financeiro");
+  revalidatePath("/painel/relatorios");
+  revalidatePath("/painel/clientes");
+  redirect(
+    `/painel/agendamentos/${parsed.data.appointment_id}?success=${encodeURIComponent("Atendimento concluído e lançado no financeiro.")}`,
+  );
+}
+
+export async function resolveUnattendedAppointment(formData: FormData) {
+  await requireMembership();
+  const parsed = z
+    .object({
+      appointment_id: uuid,
+      outcome: z.enum(["NO_SHOW", "CANCELLED"]),
+      reason: z.string().trim().max(500).optional(),
+    })
+    .safeParse(Object.fromEntries(formData));
+  if (!parsed.success) fail("/painel/minha-agenda", "Ação inválida.");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("resolve_unattended_appointment", {
+    p_appointment_id: parsed.data.appointment_id,
+    p_outcome: parsed.data.outcome,
+    p_reason: parsed.data.reason || undefined,
+  });
+  if (error)
+    fail(
+      `/painel/agendamentos/${parsed.data.appointment_id}`,
+      error.message.includes("appointment_already_resolved")
+        ? "Este atendimento já foi resolvido."
+        : "Não foi possível atualizar o atendimento.",
+    );
+  revalidatePath("/painel");
+  revalidatePath("/painel/minha-agenda");
+  revalidatePath("/painel/financeiro");
+  redirect(
+    `/painel/agendamentos/${parsed.data.appointment_id}?success=${encodeURIComponent(parsed.data.outcome === "NO_SHOW" ? "Falta registrada sem gerar receita." : "Atendimento cancelado sem gerar receita.")}`,
   );
 }

@@ -11,7 +11,9 @@ export async function updateSession(request: NextRequest) {
     cookies: {
       getAll: () => request.cookies.getAll(),
       setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+        cookiesToSet.forEach(({ name, value }) =>
+          request.cookies.set(name, value),
+        );
         response = NextResponse.next({ request });
         cookiesToSet.forEach(({ name, value, options }) =>
           response.cookies.set(name, value, options),
@@ -22,8 +24,14 @@ export async function updateSession(request: NextRequest) {
 
   const { data } = await supabase.auth.getUser();
   const pathname = request.nextUrl.pathname;
-  const privateRoute = pathname.startsWith("/painel") || pathname.startsWith("/admin") || pathname === "/onboarding" || pathname.startsWith("/trocar-senha");
-  const authRoute = ["/login", "/cadastro", "/esqueci-a-senha"].includes(pathname);
+  const privateRoute =
+    pathname.startsWith("/painel") ||
+    pathname.startsWith("/admin") ||
+    pathname === "/onboarding" ||
+    pathname.startsWith("/trocar-senha");
+  const authRoute = ["/login", "/cadastro", "/esqueci-a-senha"].includes(
+    pathname,
+  );
 
   if (privateRoute && !data.user) {
     const loginUrl = request.nextUrl.clone();

@@ -5,7 +5,10 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const requestedNext = url.searchParams.get("next");
-  const next = requestedNext?.startsWith("/") && !requestedNext.startsWith("//") ? requestedNext : "/painel";
+  const next =
+    requestedNext?.startsWith("/") && !requestedNext.startsWith("//")
+      ? requestedNext
+      : "/painel";
 
   if (code) {
     const supabase = await createClient();
@@ -13,6 +16,7 @@ export async function GET(request: Request) {
     if (!error) return NextResponse.redirect(new URL(next, url.origin));
   }
 
-  return NextResponse.redirect(new URL("/login?error=Link%20inválido%20ou%20expirado.", url.origin));
+  return NextResponse.redirect(
+    new URL("/login?error=Link%20inválido%20ou%20expirado.", url.origin),
+  );
 }
-

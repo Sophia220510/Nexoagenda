@@ -6,6 +6,8 @@ import { VisualAgenda } from "@/components/visual-agenda";
 import { Notice } from "@/components/notice";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { addDays } from "date-fns";
+import Link from "next/link";
+import { AlertCircle, ChevronRight } from "lucide-react";
 
 export default async function MyAgendaPage({
   searchParams,
@@ -33,37 +35,50 @@ export default async function MyAgendaPage({
     .select("id,name")
     .eq("id", currentProfessional.id)
     .maybeSingle();
-  const [dayBlocks, upcomingBlocks, workingHours, recurringBlocks] =
-    professional
-      ? await Promise.all([
-          supabase
-            .from("blocked_times")
-            .select("id,professional_id,starts_at,ends_at,reason")
-            .eq("professional_id", professional.id)
-            .lt("starts_at", dayEnd.toISOString())
-            .gt("ends_at", dayStart.toISOString())
-            .order("starts_at"),
-          supabase
-            .from("blocked_times")
-            .select(
-              "id,professional_id,starts_at,ends_at,reason,professionals(name)",
-            )
-            .eq("professional_id", professional.id)
-            .gte("ends_at", new Date().toISOString())
-            .order("starts_at")
-            .limit(30),
-          supabase
-            .from("working_hours")
-            .select("professional_id,weekday,start_time,end_time")
-            .eq("professional_id", professional.id)
-            .eq("active", true),
-          supabase
-            .from("recurring_blocks")
-            .select("professional_id,weekday,start_time,end_time")
-            .eq("professional_id", professional.id)
-            .eq("active", true),
-        ])
-      : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }];
+  const [
+    dayBlocks,
+    upcomingBlocks,
+    workingHours,
+    recurringBlocks,
+    pendingAppointments,
+  ] = professional
+    ? await Promise.all([
+        supabase
+          .from("blocked_times")
+          .select("id,professional_id,starts_at,ends_at,reason")
+          .eq("professional_id", professional.id)
+          .lt("starts_at", dayEnd.toISOString())
+          .gt("ends_at", dayStart.toISOString())
+          .order("starts_at"),
+        supabase
+          .from("blocked_times")
+          .select(
+            "id,professional_id,starts_at,ends_at,reason,professionals(name)",
+          )
+          .eq("professional_id", professional.id)
+          .gte("ends_at", new Date().toISOString())
+          .order("starts_at")
+          .limit(30),
+        supabase
+          .from("working_hours")
+          .select("professional_id,weekday,start_time,end_time")
+          .eq("professional_id", professional.id)
+          .eq("active", true),
+        supabase
+          .from("recurring_blocks")
+          .select("professional_id,weekday,start_time,end_time")
+          .eq("professional_id", professional.id)
+          .eq("active", true),
+        supabase
+          .from("appointments")
+          .select("id,ends_at,customers(name),services(name)")
+          .eq("professional_id", professional.id)
+          .eq("status", "CONFIRMED")
+          .lte("ends_at", new Date().toISOString())
+          .order("ends_at", { ascending: false })
+          .limit(20),
+      ])
+    : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }];
   return (
     <>
       <header className="page-header">
@@ -76,6 +91,47 @@ export default async function MyAgendaPage({
         </div>
       </header>
       <Notice error={query.error} />
+      {!!pendingAppointments.data?.length && (
+        <section className="pending-attendance-banner">
+          <div>
+            <AlertCircle />
+            <span>
+              <strong>
+                {pendingAppointments.data.length} atendimento
+                {pendingAppointments.data.length > 1 ? "s" : ""} aguardando
+                conclusão
+              </strong>
+              <small>
+                Confirme o que foi feito para atualizar o caixa e sua comissão.
+              </small>
+            </span>
+          </div>
+          <div className="pending-attendance-list">
+            {pendingAppointments.data.map((appointment) => (
+              <Link
+                href={`/painel/agendamentos/${appointment.id}`}
+                key={appointment.id}
+              >
+                <span>
+                  <strong>
+                    {
+                      (appointment.customers as unknown as { name: string })
+                        ?.name
+                    }
+                  </strong>
+                  <small>
+                    {
+                      (appointment.services as unknown as { name: string })
+                        ?.name
+                    }
+                  </small>
+                </span>
+                <ChevronRight />
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
       {professional && (
         <VisualAgenda
           appointments={rows}

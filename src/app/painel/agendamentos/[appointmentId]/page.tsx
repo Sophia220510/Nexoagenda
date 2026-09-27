@@ -1,19 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  ArrowLeft,
-  CalendarClock,
-  CheckCircle2,
-  CircleX,
-  MessageCircle,
-  UserX,
-} from "lucide-react";
+import { ArrowLeft, CalendarClock, CircleX, MessageCircle } from "lucide-react";
 import {
   rescheduleAppointment,
   setAppointmentStatus,
   updateAppointmentNote,
 } from "@/app/actions/appointments";
 import { Notice } from "@/components/notice";
+import { AppointmentCompletion } from "@/components/appointment-completion";
 import { SubmitButton } from "@/components/submit-button";
 import { requireMembership } from "@/lib/auth";
 import { formatCurrency, formatDateTime } from "@/lib/format";
@@ -40,14 +34,15 @@ export default async function AppointmentDetailPage({
   searchParams: Promise<{ error?: string; success?: string }>;
 }) {
   const membership = await requireMembership();
-  const isOwner = membership.role === "OWNER";
+  const isOperator =
+    membership.role === "OWNER" || membership.role === "RECEPTIONIST";
   const { appointmentId } = await params;
   const supabase = await createClient();
   const [{ data: appointment }, { data: professionals }] = await Promise.all([
     supabase
       .from("appointments")
       .select(
-        "id,starts_at,ends_at,status,notes,created_at,appointment_source,price_cents_snapshot,duration_minutes_snapshot,cancelled_at,cancellation_reason,customers(id,name,phone),services(id,name,price_cents,default_duration_minutes),professionals(id,name)",
+        "id,starts_at,ends_at,status,notes,created_at,appointment_source,price_cents_snapshot,duration_minutes_snapshot,cancelled_at,cancellation_reason,realized_total_cents,payment_status,discount_cents,appointment_items(id,service_name_snapshot,unit_price_cents,quantity),payments(id,amount_cents,method,status),customers(id,name,phone),services(id,name,price_cents,default_duration_minutes),professionals(id,name)",
       )
       .eq("id", appointmentId)
       .eq("business_id", membership.business_id)
@@ -75,6 +70,13 @@ export default async function AppointmentDetailPage({
     id: string;
     name: string;
   };
+  const { data: availableServices } = await supabase
+    .from("professional_services")
+    .select(
+      "service_id,price_override_cents,duration_override_minutes,services(id,name,price_cents,default_duration_minutes,active)",
+    )
+    .eq("professional_id", professional.id)
+    .eq("active", true);
   const timezone = membership.businesses?.timezone ?? "America/Sao_Paulo";
   const eligible = (professionals ?? []).filter((p) =>
     (
@@ -84,9 +86,11 @@ export default async function AppointmentDetailPage({
   return (
     <>
       <div className="back-row">
-        <Link href={isOwner ? "/painel/agendamentos" : "/painel/minha-agenda"}>
+        <Link
+          href={isOperator ? "/painel/agendamentos" : "/painel/minha-agenda"}
+        >
           <ArrowLeft size={17} />{" "}
-          {isOwner ? "Todos os agendamentos" : "Minha agenda"}
+          {isOperator ? "Todos os agendamentos" : "Minha agenda"}
         </Link>
       </div>
       <Notice {...await searchParams} />
@@ -158,99 +162,126 @@ export default async function AppointmentDetailPage({
             </div>
           )}
         </section>
-        <aside className="action-card">
-          <h2>Ações</h2>
-          {appointment.status !== "CANCELLED" && (
-            <>
-              <form action={setAppointmentStatus}>
-                <input
-                  type="hidden"
-                  name="appointment_id"
-                  value={appointment.id}
-                />
-                <input type="hidden" name="status" value="COMPLETED" />
-                <SubmitButton className="action-button success">
-                  <CheckCircle2 /> Concluir atendimento
-                </SubmitButton>
-              </form>
-              <form action={setAppointmentStatus}>
-                <input
-                  type="hidden"
-                  name="appointment_id"
-                  value={appointment.id}
-                />
-                <input type="hidden" name="status" value="NO_SHOW" />
-                <SubmitButton className="action-button">
-                  <UserX /> Cliente não compareceu
-                </SubmitButton>
-              </form>
-              {isOwner && (
-                <details>
-                  <summary>
-                    <CircleX /> Cancelar agendamento
-                  </summary>
-                  <form
-                    action={setAppointmentStatus}
-                    className="form-stack compact"
-                  >
-                    <input
-                      type="hidden"
-                      name="appointment_id"
-                      value={appointment.id}
-                    />
-                    <input type="hidden" name="status" value="CANCELLED" />
-                    <label>
-                      Motivo (opcional)
-                      <textarea name="reason" rows={2} />
-                    </label>
-                    <SubmitButton className="button-danger">
-                      Confirmar cancelamento
-                    </SubmitButton>
-                  </form>
-                </details>
+        <aside className="action-card completion-card">
+          {appointment.status === "CONFIRMED" ? (
+            <AppointmentCompletion
+              appointmentId={appointment.id}
+              customerName={customer.name}
+              originalServiceId={service.id}
+              canDiscount={isOperator}
+              canComplete={new Date(appointment.ends_at) <= new Date()}
+              services={(availableServices ?? []).flatMap((link) => {
+                const item = link.services as unknown as {
+                  id: string;
+                  name: string;
+                  price_cents: number;
+                  default_duration_minutes: number;
+                  active: boolean;
+                } | null;
+                return item?.active
+                  ? [
+                      {
+                        id: item.id,
+                        name: item.name,
+                        price_cents:
+                          link.price_override_cents ?? item.price_cents,
+                        duration_minutes:
+                          link.duration_override_minutes ??
+                          item.default_duration_minutes,
+                      },
+                    ]
+                  : [];
+              })}
+            />
+          ) : (
+            <div className="completion-resolved">
+              <p className="eyebrow">Atendimento resolvido</p>
+              <h2>{statusLabel[appointment.status]}</h2>
+              {appointment.status === "COMPLETED" && (
+                <>
+                  <strong>
+                    {formatCurrency(appointment.realized_total_cents ?? 0)}
+                  </strong>
+                  <small>
+                    {appointment.payment_status === "PAID"
+                      ? "Pagamento completo"
+                      : appointment.payment_status === "PARTIAL"
+                        ? "Pagamento parcial"
+                        : "Pagamento pendente"}
+                  </small>
+                </>
               )}
-            </>
+            </div>
           )}
+          {appointment.status === "CONFIRMED" &&
+            isOperator &&
+            new Date(appointment.ends_at) > new Date() && (
+              <details>
+                <summary>
+                  <CircleX /> Cancelar agendamento
+                </summary>
+                <form
+                  action={setAppointmentStatus}
+                  className="form-stack compact"
+                >
+                  <input
+                    type="hidden"
+                    name="appointment_id"
+                    value={appointment.id}
+                  />
+                  <input type="hidden" name="status" value="CANCELLED" />
+                  <label>
+                    Motivo (opcional)
+                    <textarea name="reason" rows={2} />
+                  </label>
+                  <SubmitButton className="button-danger">
+                    Confirmar cancelamento
+                  </SubmitButton>
+                </form>
+              </details>
+            )}
         </aside>
-        {isOwner && appointment.status !== "CANCELLED" && (
-          <section className="detail-card">
-            <h2>
-              <CalendarClock size={20} /> Reagendar
-            </h2>
-            <p className="muted">
-              A disponibilidade real será validada antes de salvar. O horário
-              atual só é liberado após a confirmação do novo.
-            </p>
-            <form action={rescheduleAppointment} className="reschedule-form">
-              <input
-                type="hidden"
-                name="appointment_id"
-                value={appointment.id}
-              />
-              <label>
-                Profissional
-                <select name="professional_id" defaultValue={professional.id}>
-                  {eligible.map((p) => (
-                    <option value={p.id} key={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Nova data e hora
+        {isOperator &&
+          appointment.status === "CONFIRMED" &&
+          new Date(appointment.starts_at) > new Date() && (
+            <section className="detail-card">
+              <h2>
+                <CalendarClock size={20} /> Reagendar
+              </h2>
+              <p className="muted">
+                A disponibilidade real será validada antes de salvar. O horário
+                atual só é liberado após a confirmação do novo.
+              </p>
+              <form action={rescheduleAppointment} className="reschedule-form">
                 <input
-                  type="datetime-local"
-                  name="starts_at"
-                  step="900"
-                  required
+                  type="hidden"
+                  name="appointment_id"
+                  value={appointment.id}
                 />
-              </label>
-              <SubmitButton>Reagendar</SubmitButton>
-            </form>
-          </section>
-        )}
-        {isOwner ? (
+                <label>
+                  Profissional
+                  <select name="professional_id" defaultValue={professional.id}>
+                    {eligible.map((p) => (
+                      <option value={p.id} key={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Nova data e hora
+                  <input
+                    type="datetime-local"
+                    name="starts_at"
+                    step="900"
+                    required
+                  />
+                </label>
+                <SubmitButton>Reagendar</SubmitButton>
+              </form>
+            </section>
+          )}
+        {isOperator ? (
           <section className="detail-card">
             <h2>Notas internas</h2>
             <form action={updateAppointmentNote} className="form-stack">
@@ -274,6 +305,53 @@ export default async function AppointmentDetailPage({
             <p className="muted appointment-note-copy">{appointment.notes}</p>
           </section>
         ) : null}
+        {appointment.status === "COMPLETED" && (
+          <section className="detail-card completed-breakdown">
+            <h2>Resumo realizado</h2>
+            <div className="completed-items">
+              {(
+                appointment.appointment_items as unknown as Array<{
+                  id: string;
+                  service_name_snapshot: string;
+                  unit_price_cents: number;
+                  quantity: number;
+                }>
+              ).map((item) => (
+                <p key={item.id}>
+                  <span>
+                    {item.service_name_snapshot}
+                    {item.quantity > 1 ? ` × ${item.quantity}` : ""}
+                  </span>
+                  <strong>
+                    {formatCurrency(item.unit_price_cents * item.quantity)}
+                  </strong>
+                </p>
+              ))}
+            </div>
+            <hr />
+            <p>
+              <span>Total realizado</span>
+              <strong>
+                {formatCurrency(appointment.realized_total_cents ?? 0)}
+              </strong>
+            </p>
+            <p>
+              <span>Recebido</span>
+              <strong>
+                {formatCurrency(
+                  (
+                    appointment.payments as unknown as Array<{
+                      amount_cents: number;
+                      status: string;
+                    }>
+                  )
+                    .filter((payment) => payment.status === "PAID")
+                    .reduce((sum, payment) => sum + payment.amount_cents, 0),
+                )}
+              </strong>
+            </p>
+          </section>
+        )}
       </div>
     </>
   );

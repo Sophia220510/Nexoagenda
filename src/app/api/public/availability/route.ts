@@ -27,6 +27,46 @@ export async function GET(request: Request) {
     );
 
   const supabase = createPublicServerClient();
+  if (parsed.data.professional === "any") {
+    const { data: business, error: businessError } = await supabase.rpc(
+      "get_public_business",
+      { p_slug: parsed.data.slug },
+    );
+    if (businessError || !business)
+      return NextResponse.json(
+        { error: "Empresa não encontrada." },
+        { status: 404 },
+      );
+    const professionals = (
+      (
+        business as {
+          professionals?: Array<{ id: string; service_ids: string[] }>;
+        }
+      ).professionals ?? []
+    ).filter((professional) =>
+      professional.service_ids.includes(parsed.data.service),
+    );
+    const results = await Promise.all(
+      professionals.map(async (professional) => ({
+        professionalId: professional.id,
+        result: await supabase.rpc("get_public_availability", {
+          p_slug: parsed.data.slug,
+          p_professional_id: professional.id,
+          p_service_id: parsed.data.service,
+          p_date: parsed.data.date,
+        }),
+      })),
+    );
+    const bySlot: Record<string, string> = {};
+    for (const item of results)
+      for (const slot of item.result.data ?? [])
+        if (!bySlot[slot.starts_at])
+          bySlot[slot.starts_at] = item.professionalId;
+    return NextResponse.json({
+      slots: Object.keys(bySlot).sort(),
+      professionalsBySlot: bySlot,
+    });
+  }
   const { data, error } = await supabase.rpc("get_public_availability", {
     p_slug: parsed.data.slug,
     p_professional_id: parsed.data.professional,

@@ -12,4 +12,3 @@ export const RESERVED_SLUGS = [
 ] as const;
 
 export const DEFAULT_TIMEZONE = "America/Sao_Paulo";
-
