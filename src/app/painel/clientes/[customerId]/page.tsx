@@ -4,7 +4,7 @@ import { ArrowLeft, CalendarPlus, MessageCircle } from "lucide-react";
 import { updateCustomerNotes } from "@/app/actions/appointments";
 import { Notice } from "@/components/notice";
 import { SubmitButton } from "@/components/submit-button";
-import { requireOwner } from "@/lib/auth";
+import { requireOperator } from "@/lib/auth";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { formatPhone } from "@/lib/phone";
 import { createClient } from "@/lib/supabase/server";
@@ -16,13 +16,13 @@ export default async function CustomerDetailPage({
   params: Promise<{ customerId: string }>;
   searchParams: Promise<{ error?: string; success?: string }>;
 }) {
-  const membership = await requireOwner();
+  const membership = await requireOperator();
   const { customerId } = await params;
   const supabase = await createClient();
   const { data: customer } = await supabase
     .from("customers")
     .select(
-      "id,name,phone,notes,created_at,appointments(id,starts_at,status,price_cents_snapshot,services(name,price_cents),professionals(name))",
+      "id,name,phone,notes,created_at,appointments(id,starts_at,status,price_cents_snapshot,realized_total_cents,payment_status,services(name,price_cents),professionals(name),appointment_items(service_name_snapshot),payments(amount_cents,status))",
     )
     .eq("id", customerId)
     .eq("business_id", membership.business_id)
@@ -36,8 +36,12 @@ export default async function CustomerDetailPage({
       starts_at: string;
       status: string;
       price_cents_snapshot: number | null;
+      realized_total_cents: number | null;
+      payment_status: string;
       services: { name: string; price_cents: number };
       professionals: { name: string };
+      appointment_items: Array<{ service_name_snapshot: string }>;
+      payments: Array<{ amount_cents: number; status: string }>;
     }>
   ).sort((a, b) => +new Date(b.starts_at) - +new Date(a.starts_at));
   const completed = history.filter((item) => item.status === "COMPLETED");
@@ -48,8 +52,15 @@ export default async function CustomerDetailPage({
     .sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at))[0];
   const last = completed[0];
   const value = completed.reduce(
+    (sum, item) => sum + (item.realized_total_cents ?? 0),
+    0,
+  );
+  const received = completed.reduce(
     (sum, item) =>
-      sum + (item.price_cents_snapshot ?? item.services.price_cents),
+      sum +
+      item.payments
+        .filter((payment) => payment.status === "PAID")
+        .reduce((paymentSum, payment) => paymentSum + payment.amount_cents, 0),
     0,
   );
   return (
@@ -106,6 +117,10 @@ export default async function CustomerDetailPage({
           <strong>{formatCurrency(value)}</strong>
         </article>
         <article>
+          <span>Total recebido</span>
+          <strong>{formatCurrency(received)}</strong>
+        </article>
+        <article>
           <span>Faltas / cancelamentos</span>
           <strong>
             {history.filter((i) => i.status === "NO_SHOW").length} /{" "}
@@ -122,7 +137,13 @@ export default async function CustomerDetailPage({
                 <Link href={`/painel/agendamentos/${item.id}`} key={item.id}>
                   <time>{formatDateTime(item.starts_at, timezone)}</time>
                   <span>
-                    <strong>{item.services.name}</strong>
+                    <strong>
+                      {item.appointment_items.length
+                        ? item.appointment_items
+                            .map((service) => service.service_name_snapshot)
+                            .join(" + ")
+                        : item.services.name}
+                    </strong>
                     <small>{item.professionals.name}</small>
                   </span>
                   <span
@@ -132,7 +153,10 @@ export default async function CustomerDetailPage({
                   </span>
                   <b>
                     {formatCurrency(
-                      item.price_cents_snapshot ?? item.services.price_cents,
+                      item.status === "COMPLETED"
+                        ? (item.realized_total_cents ?? 0)
+                        : (item.price_cents_snapshot ??
+                            item.services.price_cents),
                     )}
                   </b>
                 </Link>
@@ -144,7 +168,7 @@ export default async function CustomerDetailPage({
         </section>
         <section className="detail-card">
           <h2>Notas internas</h2>
-          <p className="muted">Visíveis somente para o proprietário.</p>
+          <p className="muted">Visíveis somente para a equipe autorizada.</p>
           <form action={updateCustomerNotes} className="form-stack">
             <input type="hidden" name="customer_id" value={customer.id} />
             <textarea

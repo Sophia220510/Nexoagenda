@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ChevronRight, ContactRound, Search } from "lucide-react";
-import { requireOwner } from "@/lib/auth";
+import { requireOperator } from "@/lib/auth";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { formatPhone } from "@/lib/phone";
 import { createClient } from "@/lib/supabase/server";
@@ -17,7 +17,7 @@ export default async function CustomersPage({
 }: {
   searchParams: Promise<{ q?: string; sort?: string }>;
 }) {
-  const membership = await requireOwner();
+  const membership = await requireOperator();
   const params = await searchParams;
   const supabase = await createClient();
   const { data } = await supabase

@@ -1,4 +1,4 @@
-import { requireOwner } from "@/lib/auth";
+import { requireOperator } from "@/lib/auth";
 import { getAppointmentsForDate } from "@/lib/appointments";
 import { createClient } from "@/lib/supabase/server";
 import { BlockedTimesPanel } from "@/components/blocked-times-panel";
@@ -22,7 +22,7 @@ export default async function AgendaPage({
     error?: string;
   }>;
 }) {
-  const membership = await requireOwner();
+  const membership = await requireOperator();
   const query = await searchParams;
   const timezone = membership.businesses?.timezone ?? "America/Sao_Paulo";
   const date = /^\d{4}-\d{2}-\d{2}$/.test(query.date ?? "")

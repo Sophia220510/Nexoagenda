@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { ManualBookingForm } from "@/components/manual-booking-form";
 import { Notice } from "@/components/notice";
-import { requireOwner } from "@/lib/auth";
+import { requireOperator } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function NewAppointmentPage({
@@ -15,7 +15,7 @@ export default async function NewAppointmentPage({
     time?: string;
   }>;
 }) {
-  const membership = await requireOwner();
+  const membership = await requireOperator();
   const query = await searchParams;
   const supabase = await createClient();
   const [customers, services, professionals] = await Promise.all([

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CalendarPlus, ChevronLeft, ChevronRight, Search } from "lucide-react";
-import { requireOwner } from "@/lib/auth";
+import { requireOperator } from "@/lib/auth";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import type { AppointmentStatus } from "@/types/domain";
@@ -34,7 +34,7 @@ export default async function AppointmentsPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  const membership = await requireOwner();
+  const membership = await requireOperator();
   const params = await searchParams;
   const supabase = await createClient();
   const q = (params.q ?? "").trim().slice(0, 80);

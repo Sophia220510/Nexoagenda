@@ -274,7 +274,9 @@ export async function createBlockedTime(formData: FormData) {
       reason: String(formData.get("reason") ?? "") || undefined,
     });
   const returnPath =
-    membership.role === "OWNER" ? "/painel/agenda" : "/painel/minha-agenda";
+    membership.role === "PROFESSIONAL"
+      ? "/painel/minha-agenda"
+      : "/painel/agenda";
   if (!parsed.success) toError(returnPath, "Dados do bloqueio inválidos.");
   const timezone = membership.businesses?.timezone ?? "America/Sao_Paulo";
   const startsAt = fromZonedTime(parsed.data.starts_at, timezone);
@@ -385,7 +387,9 @@ export async function removeBlockedTime(formData: FormData) {
   const membership = await requireMembership();
   const id = z.string().uuid().safeParse(formData.get("id"));
   const returnPath =
-    membership.role === "OWNER" ? "/painel/agenda" : "/painel/minha-agenda";
+    membership.role === "PROFESSIONAL"
+      ? "/painel/minha-agenda"
+      : "/painel/agenda";
   if (!id.success) toError(returnPath, "Bloqueio inválido.");
   const supabase = await createClient();
   const { error } = await supabase
