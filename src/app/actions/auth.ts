@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { internalAuthIdentifier, normalizeUsername } from "@/lib/username";
@@ -23,6 +24,14 @@ const usernameCredentialsSchema = z.object({
 });
 function messageUrl(path: string, type: "error" | "success", message: string) {
   return `${path}?${type}=${encodeURIComponent(message)}`;
+}
+
+async function clearSupabaseSessionCookies() {
+  const store = await cookies();
+  for (const cookie of store.getAll()) {
+    if (cookie.name.startsWith("sb-") && cookie.name.includes("-auth-token"))
+      store.delete(cookie.name);
+  }
 }
 
 async function getAccountContext(
@@ -153,13 +162,13 @@ export async function switchAccount(formData: FormData) {
     refresh_token: target.refreshToken,
   });
   if (error || !data.session || data.session.user.id !== userId.data) {
-    await removeSavedAccount(userId.data);
+    await clearSupabaseSessionCookies();
     redirect(
-      messageUrl(
+      `${messageUrl(
         "/login",
         "error",
-        "A sessão dessa conta expirou. Entre novamente para salvá-la.",
-      ),
+        "Não foi possível restaurar a sessão. Entre novamente nesta conta.",
+      )}&username=${encodeURIComponent(target.username)}`,
     );
   }
   const context = await getAccountContext(
@@ -194,7 +203,7 @@ export async function addAnotherAccount() {
     const context = await getAccountContext(supabase, verified.user);
     if (context)
       await saveAccount(context.account, data.session.refresh_token);
-    await supabase.auth.signOut({ scope: "local" });
+    await clearSupabaseSessionCookies();
   }
   redirect("/login?add=1");
 }
@@ -307,11 +316,14 @@ export async function logout() {
     supabase.auth.getSession(),
     supabase.auth.getUser(),
   ]);
-  if (data.session && verified.user?.id === data.session.user.id)
+  if (data.session && verified.user?.id === data.session.user.id) {
     await updateSavedAccountToken(
       data.session.user.id,
       data.session.refresh_token,
     );
-  await supabase.auth.signOut({ scope: "local" });
+    if (await getStoredAccount(data.session.user.id))
+      await clearSupabaseSessionCookies();
+    else await supabase.auth.signOut();
+  } else await clearSupabaseSessionCookies();
   redirect("/login");
 }

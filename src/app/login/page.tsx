@@ -9,7 +9,7 @@ import { getSavedAccounts } from "@/lib/saved-accounts";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; success?: string }>;
+  searchParams: Promise<{ error?: string; success?: string; username?: string }>;
 }) {
   const query = await searchParams;
   const savedAccounts = await getSavedAccounts();
@@ -28,7 +28,12 @@ export default async function LoginPage({
       <form action={login} className="form-stack">
         <label>
           Usuário
-          <input name="username" autoComplete="username" required />
+          <input
+            name="username"
+            autoComplete="username"
+            defaultValue={query.username ?? ""}
+            required
+          />
         </label>
         <label>
           Senha
