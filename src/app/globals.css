@@ -797,6 +797,43 @@ h2 {
   margin: 0 auto 18px;
   font-size: 1.7rem;
 }
+.mandatory-whatsapp {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  max-width: 650px;
+  margin: 24px auto 0;
+  padding: 24px;
+  border: 2px solid #1f9d55;
+  border-radius: 16px;
+  background: #effbef;
+}
+.mandatory-whatsapp.opened {
+  border-color: #9acb43;
+  background: #f5faec;
+}
+.mandatory-whatsapp strong {
+  font-size: 1.15rem;
+}
+.mandatory-whatsapp p {
+  margin: 0;
+  color: #46564b;
+  line-height: 1.5;
+}
+.mandatory-whatsapp small {
+  color: var(--muted);
+}
+.whatsapp-confirm-button {
+  width: min(100%, 430px);
+  justify-content: center;
+  margin-top: 4px;
+  background: #118c4f;
+}
+.booking-after-whatsapp {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
 @media (max-width: 850px) {
   .landing-hero {
     grid-template-columns: 1fr;

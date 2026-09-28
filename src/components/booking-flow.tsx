@@ -4,7 +4,10 @@ import { useMemo, useRef, useState } from "react";
 import type { PublicBusiness } from "@/types/domain";
 import { formatCurrency } from "@/lib/format";
 import { PhoneInput } from "@/components/phone-input";
-import { chooseBookingWhatsapp } from "@/lib/booking-contact";
+import {
+  buildBookingWhatsappMessage,
+  chooseBookingWhatsapp,
+} from "@/lib/booking-contact";
 import { buildGoogleCalendarUrl } from "@/lib/google-calendar";
 
 function dateKey(value: Date) {
@@ -40,6 +43,8 @@ export function BookingFlow({ business }: { business: PublicBusiness }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [confirmed, setConfirmed] = useState(false);
+  const [appointmentId, setAppointmentId] = useState("");
+  const [whatsappOpened, setWhatsappOpened] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const idempotencyKey = useRef("");
   const professionals = useMemo(
@@ -121,7 +126,10 @@ export function BookingFlow({ business }: { business: PublicBusiness }) {
         idempotency_key: idempotencyKey.current,
       }),
     });
-    const payload = (await response.json()) as { error?: string };
+    const payload = (await response.json()) as {
+      error?: string;
+      appointment_id?: string;
+    };
     if (!response.ok) {
       if (response.status === 409) {
         setSlot("");
@@ -133,6 +141,7 @@ export function BookingFlow({ business }: { business: PublicBusiness }) {
       setLoading(false);
       return;
     }
+    setAppointmentId(payload.appointment_id ?? "");
     setConfirmed(true);
     setLoading(false);
   }
@@ -148,7 +157,13 @@ export function BookingFlow({ business }: { business: PublicBusiness }) {
       const dateLabel = new Intl.DateTimeFormat("pt-BR", {
         dateStyle: "short", timeStyle: "short", timeZone: business.timezone,
       }).format(new Date(slot));
-      const whatsappMessage = `Olá! Sou ${customerName}. Acabei de agendar ${selectedService?.name ?? "um atendimento"} com ${professional?.name ?? "a equipe"} para ${dateLabel} pelo NEXO Book.`;
+      const whatsappMessage = buildBookingWhatsappMessage({
+        customerName,
+        serviceName: selectedService?.name ?? "Atendimento",
+        professionalName: professional?.name ?? business.name,
+        dateLabel,
+        confirmationCode: appointmentId.replace(/-/g, "").slice(-6) || "CONFIRMADO",
+      });
       const whatsappHref = `https://wa.me/${destination.replace(/\D/g, "")}?text=${encodeURIComponent(whatsappMessage)}`;
       const start = new Date(slot);
       const end = new Date(start.getTime() + (selectedService?.default_duration_minutes ?? 30) * 60_000);
@@ -163,8 +178,9 @@ export function BookingFlow({ business }: { business: PublicBusiness }) {
       return (
       <section className="booking-success">
         <span>✓</span>
+        <p className="eyebrow">Horário reservado</p>
         <h2>Agendamento confirmado</h2>
-        <p>Seu horário foi reservado.</p>
+        <p>O profissional não precisa aprovar nada.</p>
         <div className="booking-summary">
           <strong>{selectedService?.name}</strong>
           <span>
@@ -182,13 +198,39 @@ export function BookingFlow({ business }: { business: PublicBusiness }) {
             }).format(new Date(slot))}
           </span>
         </div>
-        <p className="muted">
-          O horário está reservado. Você pode falar com {professional?.name ?? "o negócio"} ou salvar no calendário.
-        </p>
-        <div className="booking-success-actions">
-          <a className="button" href={whatsappHref} target="_blank" rel="noreferrer">Falar pelo WhatsApp</a>
-          <a className="button-ghost" href={calendarHref} target="_blank" rel="noreferrer">Adicionar ao Google Agenda</a>
+        <div className={`mandatory-whatsapp ${whatsappOpened ? "opened" : ""}`}>
+          <strong>
+            {whatsappOpened
+              ? "WhatsApp aberto"
+              : "Última etapa: avise pelo WhatsApp"}
+          </strong>
+          <p>
+            {whatsappOpened
+              ? "Agora toque em Enviar na conversa. Se necessário, abra novamente abaixo."
+              : `Envie a mensagem pronta para ${professional?.name ?? business.name} reconhecer seu agendamento.`}
+          </p>
+          <a
+            className="button whatsapp-confirm-button"
+            href={whatsappHref}
+            target="_blank"
+            rel="noreferrer"
+            onClick={() => setWhatsappOpened(true)}
+          >
+            {whatsappOpened
+              ? "Abrir WhatsApp novamente"
+              : "Enviar confirmação no WhatsApp"}
+          </a>
+          <small>
+            Seu horário já está confirmado. Esta mensagem serve para avisar o estabelecimento.
+          </small>
         </div>
+        {whatsappOpened && (
+          <div className="booking-after-whatsapp">
+            <a className="button-ghost" href={calendarHref} target="_blank" rel="noreferrer">
+              Adicionar ao Google Agenda
+            </a>
+          </div>
+        )}
       </section>
       );
     }
