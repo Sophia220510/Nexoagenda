@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  generateTemporaryPassword,
-  internalAuthIdentifier,
-  normalizeUsername,
-} from "./username";
+import { internalAuthIdentifier, normalizeUsername } from "./username";
 describe("username seguro", () => {
   it("normaliza caixa sem consultar o banco", () =>
     expect(normalizeUsername("  Studio.Joao ")).toBe("studio.joao"));
@@ -17,9 +13,4 @@ describe("username seguro", () => {
     expect(internalAuthIdentifier("rafael.demo")).toBe(
       "rafael.demo@auth.nexo.invalid",
     ));
-  it("gera senha temporária forte sem persistência", () => {
-    const value = generateTemporaryPassword();
-    expect(value.length).toBe(20);
-    expect(value).not.toBe(generateTemporaryPassword());
-  });
 });

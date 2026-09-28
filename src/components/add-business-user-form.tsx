@@ -4,12 +4,6 @@ import {
   addBusinessUserAsAdmin,
   type AddBusinessUserState,
 } from "@/app/admin/actions";
-function generate() {
-  const chars =
-    "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
-  const bytes = crypto.getRandomValues(new Uint8Array(18));
-  return Array.from(bytes, (byte) => chars[byte % chars.length]).join("");
-}
 export function AddBusinessUserForm({ businessId }: { businessId: string }) {
   const [state, action, pending] = useActionState(
     addBusinessUserAsAdmin,
@@ -37,8 +31,8 @@ export function AddBusinessUserForm({ businessId }: { businessId: string }) {
           <input name="username" required />
         </label>
         <label>
-          Senha temporária
-          <div className="input-action">
+          Senha de acesso
+          <div>
             <input
               name="password"
               value={password}
@@ -46,13 +40,6 @@ export function AddBusinessUserForm({ businessId }: { businessId: string }) {
               minLength={10}
               required
             />
-            <button
-              type="button"
-              className="button-ghost"
-              onClick={() => setPassword(generate())}
-            >
-              Gerar
-            </button>
           </div>
         </label>
         <label>

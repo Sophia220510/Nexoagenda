@@ -38,9 +38,7 @@ export default async function AdminUsersPage() {
                   <p>
                     @{identity.username} · {member?.role ?? "PLATFORM_ADMIN"} ·{" "}
                     {identity.active ? "ativo" : "inativo"}
-                    {identity.must_change_password
-                      ? " · troca de senha pendente"
-                      : ""}
+                    {identity.must_change_password ? " · acesso legado" : " · acesso pronto"}
                   </p>
                 </div>
                 <ResetPasswordForm userId={identity.user_id} />

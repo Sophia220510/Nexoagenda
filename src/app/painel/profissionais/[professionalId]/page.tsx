@@ -117,7 +117,7 @@ export default async function ProfessionalDetailPage({
           <section className="panel-card" id="acesso">
             <h2>Acesso</h2>
             <p><strong>Status:</strong> {professional.user_id ? "Login ativo" : "Sem login vinculado"}</p>
-            <p className="muted">Por segurança, senhas atuais nunca são exibidas. Redefinições devem gerar uma nova senha temporária.</p>
+            <p className="muted">Por segurança, senhas atuais nunca são exibidas. O administrador pode definir uma nova senha de acesso quando necessário.</p>
           </section>
         </div>
       </div>

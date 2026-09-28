@@ -33,12 +33,6 @@ const categories = [
   ["CONSULTING", "Consultoria"],
   ["OTHER", "Outro"],
 ];
-function password() {
-  const chars =
-    "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
-  const bytes = crypto.getRandomValues(new Uint8Array(18));
-  return Array.from(bytes, (byte) => chars[byte % chars.length]).join("");
-}
 
 export function NewBusinessWizard() {
   const [state, action, pending] = useActionState(
@@ -58,7 +52,7 @@ export function NewBusinessWizard() {
     {
       name: "",
       username: "",
-      password: password(),
+      password: "",
       role: "OWNER",
       is_professional: true,
       photo_url: "",
@@ -233,23 +227,14 @@ export function NewBusinessWizard() {
                   />
                 </label>
                 <label>
-                  Senha temporária
-                  <div className="input-action">
+                  Senha de acesso
+                  <div>
                     <input
                       value={user.password}
                       onChange={(e) =>
                         updateUser(index, { password: e.target.value })
                       }
                     />
-                    <button
-                      type="button"
-                      className="button-ghost"
-                      onClick={() =>
-                        updateUser(index, { password: password() })
-                      }
-                    >
-                      Gerar
-                    </button>
                   </div>
                 </label>
                 <label>
@@ -311,7 +296,7 @@ export function NewBusinessWizard() {
                 {
                   name: "",
                   username: "",
-                  password: password(),
+                  password: "",
                   role: "PROFESSIONAL",
                   is_professional: true,
                   photo_url: "",

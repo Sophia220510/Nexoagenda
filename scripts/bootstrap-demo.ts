@@ -18,7 +18,7 @@ function readEnv(): Env {
 }
 
 const internalIdentifier = (username: string) => `${username}@auth.nexo.invalid`;
-function temporaryPassword() { const alphabet="ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%"; const bytes=crypto.getRandomValues(new Uint8Array(20)); return Array.from(bytes,(byte)=>alphabet[byte%alphabet.length]).join(""); }
+const DEMO_PASSWORD = "davimito123";
 
 function addDateDays(date: string, days: number) {
   const value = new Date(`${date}T00:00:00.000Z`);
@@ -60,7 +60,7 @@ async function main() {
     return data.user;
   }
 
-  const credentials = { master: { username:"nexo.admin",password:temporaryPassword() }, lucas: { username:"lucas.owner",password:temporaryPassword() }, rafael: { username:"rafael.demo",password:temporaryPassword() }, pedro: { username:"pedro.demo",password:temporaryPassword() } };
+  const credentials = { master: { username:"nexo.admin",password:DEMO_PASSWORD }, lucas: { username:"lucas.owner",password:DEMO_PASSWORD }, rafael: { username:"rafael.demo",password:DEMO_PASSWORD }, pedro: { username:"pedro.demo",password:DEMO_PASSWORD } };
   const master = await ensureUser(credentials.master.username, credentials.master.password, "Master Admin NEXO");
   const lucasUser = await ensureUser(credentials.lucas.username, credentials.lucas.password, "Lucas — Owner Demo");
   const rafaelUser = await ensureUser(credentials.rafael.username, credentials.rafael.password, "Rafael — Profissional Demo");
@@ -72,7 +72,7 @@ async function main() {
   }
   const identityRows = [[master, credentials.master.username], [lucasUser, credentials.lucas.username], [rafaelUser, credentials.rafael.username], [pedroUser, credentials.pedro.username]] as const;
   for (const [user, username] of identityRows) {
-    const { error } = await supabase.from("login_identities").upsert({ user_id:user.id, username, username_normalized:username, internal_auth_identifier:internalIdentifier(username), active:true, must_change_password:true }, { onConflict:"user_id" });
+    const { error } = await supabase.from("login_identities").upsert({ user_id:user.id, username, username_normalized:username, internal_auth_identifier:internalIdentifier(username), active:true, must_change_password:false }, { onConflict:"user_id" });
     if (error) throw error;
   }
 
@@ -209,10 +209,10 @@ async function main() {
 
   console.log("=====================================");
   console.log("NEXO AGENDA — CREDENCIAIS DE TESTE");
-  console.log(`MASTER ADMIN\nUsuário: ${credentials.master.username}\nSenha temporária: ${credentials.master.password}`);
-  console.log(`OWNER DEMO\nUsuário: ${credentials.lucas.username}\nSenha temporária: ${credentials.lucas.password}`);
-  console.log(`RAFAEL\nUsuário: ${credentials.rafael.username}\nSenha temporária: ${credentials.rafael.password}`);
-  console.log(`PEDRO\nUsuário: ${credentials.pedro.username}\nSenha temporária: ${credentials.pedro.password}`);
+  console.log(`MASTER ADMIN\nUsuário: ${credentials.master.username}\nSenha: ${credentials.master.password}`);
+  console.log(`OWNER DEMO\nUsuário: ${credentials.lucas.username}\nSenha: ${credentials.lucas.password}`);
+  console.log(`RAFAEL\nUsuário: ${credentials.rafael.username}\nSenha: ${credentials.rafael.password}`);
+  console.log(`PEDRO\nUsuário: ${credentials.pedro.username}\nSenha: ${credentials.pedro.password}`);
   console.log("=====================================");
   console.log(`Página pública: ${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/barbearia-nexo-demo`);
   console.log(`Empresa: ${businessId}; profissionais: 3; serviços: ${serviceDefinitions.length}; clientes: ${customerDefinitions.length}; appointments: ${appointmentDefinitions.length}.`);

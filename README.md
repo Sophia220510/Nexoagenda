@@ -84,7 +84,7 @@ O bootstrap cria/atualiza `barbearia-nexo-demo`, Lucas (OWNER), Rafael e Pedro (
 - `customers`: clientes sem login, telefone único dentro do tenant e notas privadas do proprietário.
 - `appointments`: horários absolutos, status, origem, cancelamento e snapshots históricos de preço/duração.
 - `platform_admins` e `admin_audit_logs`: acesso master separado e trilha de alterações.
-- `login_identities`: username global normalizado, identificador interno do Auth e troca obrigatória de senha; nunca contém senha.
+- `login_identities`: username global normalizado e identificador interno do Auth; senhas definitivas ficam somente no Supabase Auth e nunca nessa tabela.
 - `businesses.business_type`: categoria informativa; todas as categorias usam o mesmo modelo multiempresa.
 
 Todas as entidades privadas têm relação inequívoca com `business_id`. FKs compostas impedem combinar profissional, serviço ou cliente de empresas diferentes.

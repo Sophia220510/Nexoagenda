@@ -13,7 +13,7 @@ export default async function ChangePasswordPage({
   return (
     <AuthCard
       title="Crie sua nova senha"
-      description="Por segurança, substitua a senha temporária antes de continuar."
+      description="Defina uma nova senha para a sua conta."
     >
       <Notice {...await searchParams} />
       <form action={changeTemporaryPassword} className="form-stack">

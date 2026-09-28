@@ -32,9 +32,3 @@ export function internalAuthIdentifier(username: string) {
   return `${username}@auth.nexo.invalid`;
 }
 
-export function generateTemporaryPassword() {
-  const alphabet =
-    "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
-  const bytes = crypto.getRandomValues(new Uint8Array(20));
-  return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join("");
-}

@@ -41,14 +41,13 @@ export async function login(formData: FormData) {
     redirect(messageUrl("/login", "error", "Usuário ou senha inválidos."));
   const { data: identity } = await supabase
     .from("login_identities")
-    .select("active,must_change_password")
+    .select("active")
     .eq("user_id", data.user.id)
     .maybeSingle();
   if (identity && !identity.active) {
     await supabase.auth.signOut();
     redirect(messageUrl("/login", "error", "Usuário ou senha inválidos."));
   }
-  if (identity?.must_change_password) redirect("/trocar-senha");
   const [{ data: membership }, { data: platformAdmin }] = await Promise.all([
     supabase
       .from("business_members")

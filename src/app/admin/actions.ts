@@ -284,6 +284,11 @@ export async function createBusinessAsAdmin(
       { p_bundle: bundle },
     );
     if (error) throw error;
+    const { error: accessReadyError } = await admin
+      .from("login_identities")
+      .update({ must_change_password: false })
+      .in("user_id", createdIds);
+    if (accessReadyError) throw accessReadyError;
     revalidatePath("/admin");
     revalidatePath("/admin/empresas");
     return {
@@ -314,7 +319,7 @@ export async function resetUserPasswordAsAdmin(
   const userId = uuid.safeParse(formData.get("user_id"));
   const password = z.string().min(10).safeParse(formData.get("password"));
   if (!userId.success || !password.success)
-    return { error: "Usuário ou senha temporária inválidos." };
+    return { error: "Usuário ou senha inválidos." };
   const admin = createAdminClient();
   const { error } = await admin.auth.admin.updateUserById(userId.data, {
     password: password.data,
@@ -322,7 +327,7 @@ export async function resetUserPasswordAsAdmin(
   if (error) return { error: "Não foi possível redefinir a senha." };
   await admin
     .from("login_identities")
-    .update({ must_change_password: true })
+    .update({ must_change_password: false })
     .eq("user_id", userId.data);
   const actor = await getCurrentUser();
   const { data: member } = await admin
@@ -398,7 +403,7 @@ export async function addBusinessUserAsAdmin(
         username,
         username_normalized: username,
         internal_auth_identifier: identifier,
-        must_change_password: true,
+        must_change_password: false,
       });
     if (identityError) throw identityError;
     const { error: memberError } = await admin.from("business_members").insert({

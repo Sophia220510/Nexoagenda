@@ -293,9 +293,7 @@ export default async function AdminBusinessDetailPage({
                     </strong>
                     <p>
                       {member.role}
-                      {identity?.must_change_password
-                        ? " · troca de senha pendente"
-                        : ""}{" "}
+                      {identity?.must_change_password ? " · acesso legado" : " · acesso pronto"}{" "}
                       · {formatDateTime(member.created_at, business.timezone)}
                     </p>
                   </div>

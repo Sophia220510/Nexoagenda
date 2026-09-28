@@ -5,6 +5,7 @@ import type { PublicBusiness } from "@/types/domain";
 import { formatCurrency } from "@/lib/format";
 import { PhoneInput } from "@/components/phone-input";
 import { chooseBookingWhatsapp } from "@/lib/booking-contact";
+import { buildGoogleCalendarUrl } from "@/lib/google-calendar";
 
 function dateKey(value: Date) {
   const year = value.getFullYear();
@@ -151,12 +152,14 @@ export function BookingFlow({ business }: { business: PublicBusiness }) {
       const whatsappHref = `https://wa.me/${destination.replace(/\D/g, "")}?text=${encodeURIComponent(whatsappMessage)}`;
       const start = new Date(slot);
       const end = new Date(start.getTime() + (selectedService?.default_duration_minutes ?? 30) * 60_000);
-      const icsStamp = (value: Date) => value.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
-      const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//NEXO Book//PT-BR", "BEGIN:VEVENT",
-        `DTSTART:${icsStamp(start)}`, `DTEND:${icsStamp(end)}`,
-        `SUMMARY:${selectedService?.name ?? "Atendimento"} - ${business.name}`,
-        `DESCRIPTION:Agendamento com ${professional?.name ?? business.name}`, "END:VEVENT", "END:VCALENDAR"].join("\r\n");
-      const calendarHref = `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`;
+      const calendarHref = buildGoogleCalendarUrl({
+        title: `${selectedService?.name ?? "Atendimento"} — ${business.name}`,
+        start,
+        end,
+        timezone: business.timezone,
+        details: `Agendamento feito pelo NEXO Book com ${professional?.name ?? business.name}.`,
+        location: business.address ?? "",
+      });
       return (
       <section className="booking-success">
         <span>✓</span>
@@ -184,7 +187,7 @@ export function BookingFlow({ business }: { business: PublicBusiness }) {
         </p>
         <div className="booking-success-actions">
           <a className="button" href={whatsappHref} target="_blank" rel="noreferrer">Falar pelo WhatsApp</a>
-          <a className="button-ghost" href={calendarHref} download="agendamento-nexo-book.ics">Adicionar ao calendário</a>
+          <a className="button-ghost" href={calendarHref} target="_blank" rel="noreferrer">Adicionar ao Google Agenda</a>
         </div>
       </section>
       );
