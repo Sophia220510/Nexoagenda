@@ -196,6 +196,7 @@ export default async function AgendaPage({
           date={date}
           basePath={viewBase}
           nowIso={new Date().toISOString()}
+          slotMinutes={membership.businesses?.slot_interval_minutes ?? 15}
           canCreateAppointment
         />
       ) : (

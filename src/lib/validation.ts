@@ -70,6 +70,9 @@ export const professionalSchema = z.object({
     .optional()
     .transform((v) => v || null),
   service_ids: z.array(uuid).default([]),
+  phone: z.union([z.literal(""), phoneSchema]).optional().transform((v) => v || null),
+  whatsapp_phone: z.union([z.literal(""), phoneSchema]).optional().transform((v) => v || null),
+  receive_booking_whatsapp: z.coerce.boolean().default(false),
 });
 
 export const workingHourSchema = z

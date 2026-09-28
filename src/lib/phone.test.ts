@@ -8,4 +8,8 @@ describe("normalizePhone", () => {
     expect(normalizePhone("+55 11 98888-7777")).toBe("+5511988887777"));
   it("rejeita entradas curtas", () =>
     expect(() => normalizePhone("123")).toThrow());
+  it("rejeita DDD inexistente e números repetidos", () => {
+    expect(() => normalizePhone("(10) 99999-9999")).toThrow();
+    expect(() => normalizePhone("(11) 11111-1111")).toThrow();
+  });
 });

@@ -10,6 +10,7 @@ import {
   LockKeyhole,
   Scissors,
   UserPlus,
+  AlertCircle,
 } from "lucide-react";
 import { requireMembership, getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -35,6 +36,7 @@ export default async function DashboardPage() {
   const user = await getCurrentUser();
   const [
     today,
+    pendingAppointments,
     week,
     monthAppointments,
     newCustomers,
@@ -52,6 +54,14 @@ export default async function DashboardPage() {
       .lt("starts_at", dayEnd.toISOString())
       .neq("status", "CANCELLED")
       .order("starts_at"),
+    supabase
+      .from("appointments")
+      .select("id,starts_at,ends_at,status,customers(name),services(name),professionals(name)")
+      .eq("business_id", membership.business_id)
+      .eq("status", "CONFIRMED")
+      .lte("ends_at", now.toISOString())
+      .order("ends_at", { ascending: false })
+      .limit(20),
     supabase
       .from("appointments")
       .select("id", { count: "exact", head: true })
@@ -127,6 +137,7 @@ export default async function DashboardPage() {
   const upcoming = (today.data ?? []).filter(
     (item) => new Date(item.ends_at) >= now,
   );
+  const pendingToday = pendingAppointments.data ?? [];
   return (
     <>
       <header className="owner-hero">
@@ -154,6 +165,22 @@ export default async function DashboardPage() {
           </Link>
         </div>
       </header>
+      {pendingToday.length > 0 && (
+        <section className="pending-attendance-banner">
+          <div>
+            <AlertCircle />
+            <span><strong>Atendimentos aguardando confirmação</strong><small>{pendingToday.length} pendente{pendingToday.length > 1 ? "s" : ""} para atualizar produção e caixa.</small></span>
+          </div>
+          <div className="pending-attendance-list">
+            {pendingToday.slice(0, 5).map((item) => (
+              <Link href={`/painel/agendamentos/${item.id}`} key={item.id}>
+                <span><strong>{formatInTimeZone(item.starts_at, timezone, "HH:mm")} · {(item.customers as unknown as { name: string })?.name}</strong><small>{(item.services as unknown as { name: string })?.name} · {(item.professionals as unknown as { name: string })?.name}</small></span>
+                <b>Confirmar atendimento</b>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
       <section className="metric-grid">
         <article>
           <span>Agendamentos hoje</span>
@@ -268,7 +295,7 @@ export default async function DashboardPage() {
               <small>Acesse histórico e contatos</small>
             </span>
           </Link>
-          <Link href="/painel/profissionais">
+          <Link href="/painel/equipe">
             <UserPlus />
             <span>
               <strong>Adicionar profissional</strong>

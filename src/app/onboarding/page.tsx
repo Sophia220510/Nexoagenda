@@ -4,6 +4,7 @@ import { Notice } from "@/components/notice";
 import { SubmitButton } from "@/components/submit-button";
 import { getCurrentBusiness, requireAuth } from "@/lib/auth";
 import { DEFAULT_TIMEZONE } from "@/lib/constants";
+import { PhoneInput } from "@/components/phone-input";
 
 export default async function OnboardingPage({
   searchParams,
@@ -45,13 +46,13 @@ export default async function OnboardingPage({
           </label>
           <label>
             WhatsApp
-            <input
-              name="phone"
-              inputMode="tel"
-              placeholder="(11) 99999-9999"
-              required
-            />
+            <PhoneInput required />
           </label>
+          <fieldset className="settings-group">
+            <legend>Como você trabalha?</legend>
+            <label className="check"><input type="radio" name="business_mode" value="SOLO" defaultChecked /> Trabalho sozinho</label>
+            <label className="check"><input type="radio" name="business_mode" value="TEAM" /> Tenho uma equipe</label>
+          </fieldset>
           <label>
             Fuso horário
             <input name="timezone" defaultValue={DEFAULT_TIMEZONE} required />

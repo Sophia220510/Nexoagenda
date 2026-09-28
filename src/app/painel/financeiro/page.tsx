@@ -64,19 +64,23 @@ export default async function FinancePage({
     scheduled_cents?: number;
     realized_cents?: number;
     received_cents?: number;
+    receivable_cents?: number;
     expenses_cents?: number;
     commission_cents?: number;
+    commission_generated_cents?: number;
+    commission_paid_cents?: number;
+    cash_balance_cents?: number;
     pending_appointments?: number;
     by_method?: Record<string, number>;
   };
-  const pendingCents = Math.max(
+  const pendingCents = summary.receivable_cents ?? Math.max(
     0,
     (summary.realized_cents ?? 0) - (summary.received_cents ?? 0),
   );
-  const operational =
-    (summary.received_cents ?? 0) -
-    (summary.expenses_cents ?? 0) -
-    (summary.commission_cents ?? 0);
+  const commissionGenerated = summary.commission_generated_cents ?? summary.commission_cents ?? 0;
+  const commissionPaid = summary.commission_paid_cents ?? 0;
+  const operational = summary.cash_balance_cents ??
+    (summary.received_cents ?? 0) - (summary.expenses_cents ?? 0) - commissionPaid;
   const movements = [
     ...(payments ?? []).map((item) => ({
       id: `p-${item.id}`,
@@ -186,6 +190,30 @@ export default async function FinancePage({
           <strong>{formatCurrency(pendingCents)}</strong>
           <small>Realizado ainda não recebido</small>
         </article>
+        <article>
+          <ReceiptText />
+          <span>Comissão gerada</span>
+          <strong>{formatCurrency(commissionGenerated)}</strong>
+          <small>Valor calculado, ainda não saiu do caixa</small>
+        </article>
+        <article>
+          <ArrowDownRight />
+          <span>Comissão paga</span>
+          <strong>{formatCurrency(commissionPaid)}</strong>
+          <small>Repasses efetivamente pagos</small>
+        </article>
+        <article>
+          <ArrowDownRight />
+          <span>Despesas</span>
+          <strong>{formatCurrency(summary.expenses_cents ?? 0)}</strong>
+          <small>Saídas registradas no período</small>
+        </article>
+        <article className={operational >= 0 ? "is-positive" : "is-warning"}>
+          <WalletCards />
+          <span>Saldo de caixa</span>
+          <strong>{formatCurrency(operational)}</strong>
+          <small>Recebido pela empresa menos saídas pagas</small>
+        </article>
       </section>
       <div className="finance-columns">
         <section className="finance-panel">
@@ -227,8 +255,8 @@ export default async function FinancePage({
               <dd>- {formatCurrency(summary.expenses_cents ?? 0)}</dd>
             </div>
             <div>
-              <dt>Comissões</dt>
-              <dd>- {formatCurrency(summary.commission_cents ?? 0)}</dd>
+              <dt>Comissões pagas</dt>
+              <dd>- {formatCurrency(commissionPaid)}</dd>
             </div>
           </dl>
           <small>

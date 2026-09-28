@@ -25,16 +25,24 @@ import { NexoBrand } from "@/components/nexo-brand";
 import type { Membership } from "@/types/domain";
 
 const ownerLinks = [
-  ["/painel", "Visão geral", Home],
+  ["/painel", "Início", Home],
   ["/painel/agenda", "Agenda", CalendarDays],
   ["/painel/agendamentos", "Agendamentos", Clock3],
   ["/painel/clientes", "Clientes", ContactRound],
   ["/painel/financeiro", "Financeiro", WalletCards],
   ["/painel/relatorios", "Relatórios", BarChart3],
-  ["/painel/lista-de-espera", "Lista de espera", ListPlus],
-  ["/painel/profissionais", "Profissionais", UsersRound],
+  ["/painel/equipe", "Equipe", UsersRound],
   ["/painel/servicos", "Serviços", Scissors],
-  ["/painel/notificacoes", "Notificações", Bell],
+  ["/painel/configuracoes", "Configurações", Settings],
+] as const;
+
+const soloOwnerLinks = [
+  ["/painel", "Início", Home],
+  ["/painel/agenda", "Minha agenda", CalendarDays],
+  ["/painel/clientes", "Clientes", ContactRound],
+  ["/painel/servicos", "Serviços", Scissors],
+  ["/painel/financeiro", "Financeiro", WalletCards],
+  ["/painel/relatorios", "Relatórios", BarChart3],
   ["/painel/configuracoes", "Configurações", Settings],
 ] as const;
 
@@ -46,13 +54,12 @@ const receptionistLinks = [
   ["/painel/financeiro", "Financeiro", WalletCards],
   ["/painel/relatorios", "Relatórios", BarChart3],
   ["/painel/lista-de-espera", "Lista de espera", ListPlus],
-  ["/painel/notificacoes", "Notificações", Bell],
+  ["/painel/lista-de-espera", "Lista de espera", ListPlus],
 ] as const;
 
 const professionalLinks = [
   ["/painel/minha-agenda", "Minha agenda", CalendarDays],
   ["/painel/meus-horarios", "Meus horários", Clock3],
-  ["/painel/notificacoes", "Notificações", Bell],
 ] as const;
 
 export function DashboardNav({
@@ -70,7 +77,9 @@ export function DashboardNav({
   const receptionist = membership.role === "RECEPTIONIST";
   const operator = owner || receptionist;
   const links = owner
-    ? ownerLinks
+    ? membership.businesses?.business_mode === "SOLO"
+      ? soloOwnerLinks
+      : ownerLinks
     : receptionist
       ? receptionistLinks
       : professionalLinks;
@@ -81,6 +90,14 @@ export function DashboardNav({
       <aside className={`sidebar ${open ? "mobile-open" : ""}`}>
         <div className="sidebar-head">
           <NexoBrand href="/painel" inverse />
+          <Link
+            className="sidebar-notification"
+            href="/painel/notificacoes"
+            aria-label={`${unreadCount} notificações não lidas`}
+          >
+            <Bell size={19} />
+            {unreadCount > 0 && <b>{unreadCount > 99 ? "99+" : unreadCount}</b>}
+          </Link>
           <button
             className="sidebar-close"
             type="button"
@@ -101,9 +118,6 @@ export function DashboardNav({
             >
               <Icon size={18} />
               <span>{label}</span>
-              {href.includes("notificacoes") && unreadCount > 0 && (
-                <b>{unreadCount > 99 ? "99+" : unreadCount}</b>
-              )}
             </Link>
           ))}
           {operator && (
@@ -141,9 +155,15 @@ export function DashboardNav({
       )}
       <header className="mobile-topbar">
         <NexoBrand href="/painel" compact />
-        <button onClick={() => setOpen(true)} aria-label="Abrir menu">
-          <Menu size={22} />
-        </button>
+        <div>
+          <Link href="/painel/notificacoes" aria-label="Notificações">
+            <Bell size={21} />
+            {unreadCount > 0 && <b>{unreadCount > 9 ? "9+" : unreadCount}</b>}
+          </Link>
+          <button onClick={() => setOpen(true)} aria-label="Abrir menu">
+            <Menu size={22} />
+          </button>
+        </div>
       </header>
       <nav className="mobile-bottom-nav" aria-label="Navegação rápida">
         <Link href="/painel" className={pathname === "/painel" ? "active" : ""}>
@@ -159,13 +179,13 @@ export function DashboardNav({
         </Link>
         {operator ? (
           <Link
-            href="/painel/financeiro"
+            href="/painel/clientes"
             className={
-              pathname.startsWith("/painel/financeiro") ? "active" : ""
+              pathname.startsWith("/painel/clientes") ? "active" : ""
             }
           >
-            <WalletCards />
-            <span>Financeiro</span>
+            <ContactRound />
+            <span>Clientes</span>
           </Link>
         ) : (
           <Link

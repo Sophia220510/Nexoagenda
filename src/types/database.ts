@@ -413,9 +413,11 @@ export type Database = {
       };
       businesses: {
         Row: {
+          accepted_payment_methods: Database["public"]["Enums"]["payment_method"][];
           active: boolean;
           address: string | null;
           business_type: string;
+          business_mode: Database["public"]["Enums"]["business_mode"];
           cash_closing_enabled: boolean;
           commission_basis: string;
           created_at: string;
@@ -427,18 +429,22 @@ export type Database = {
           notification_provider: string | null;
           phone: string;
           professionals_can_view_commission: boolean;
+          payment_fee_bps: Json;
           reminder_24h_enabled: boolean;
           reminder_2h_enabled: boolean;
           reminder_template: string | null;
           reminders_enabled: boolean;
           slug: string;
+          slot_interval_minutes: number;
           timezone: string;
           updated_at: string;
         };
         Insert: {
+          accepted_payment_methods?: Database["public"]["Enums"]["payment_method"][];
           active?: boolean;
           address?: string | null;
           business_type?: string;
+          business_mode?: Database["public"]["Enums"]["business_mode"];
           cash_closing_enabled?: boolean;
           commission_basis?: string;
           created_at?: string;
@@ -450,18 +456,22 @@ export type Database = {
           notification_provider?: string | null;
           phone: string;
           professionals_can_view_commission?: boolean;
+          payment_fee_bps?: Json;
           reminder_24h_enabled?: boolean;
           reminder_2h_enabled?: boolean;
           reminder_template?: string | null;
           reminders_enabled?: boolean;
           slug: string;
+          slot_interval_minutes?: number;
           timezone?: string;
           updated_at?: string;
         };
         Update: {
+          accepted_payment_methods?: Database["public"]["Enums"]["payment_method"][];
           active?: boolean;
           address?: string | null;
           business_type?: string;
+          business_mode?: Database["public"]["Enums"]["business_mode"];
           cash_closing_enabled?: boolean;
           commission_basis?: string;
           created_at?: string;
@@ -473,11 +483,13 @@ export type Database = {
           notification_provider?: string | null;
           phone?: string;
           professionals_can_view_commission?: boolean;
+          payment_fee_bps?: Json;
           reminder_24h_enabled?: boolean;
           reminder_2h_enabled?: boolean;
           reminder_template?: string | null;
           reminders_enabled?: boolean;
           slug?: string;
+          slot_interval_minutes?: number;
           timezone?: string;
           updated_at?: string;
         };
@@ -1004,10 +1016,14 @@ export type Database = {
           business_id: string;
           created_at: string;
           id: string;
+          fee_cents: number;
+          gross_amount_cents: number;
           method: Database["public"]["Enums"]["payment_method"];
+          net_amount_cents: number;
           notes: string | null;
           paid_at: string;
           recorded_by_user_id: string;
+          receiver: Database["public"]["Enums"]["payment_receiver"];
           status: Database["public"]["Enums"]["payment_record_status"];
           updated_at: string;
           void_reason: string | null;
@@ -1020,10 +1036,14 @@ export type Database = {
           business_id: string;
           created_at?: string;
           id?: string;
+          fee_cents?: number;
+          gross_amount_cents?: number;
           method: Database["public"]["Enums"]["payment_method"];
+          net_amount_cents?: number;
           notes?: string | null;
           paid_at?: string;
           recorded_by_user_id: string;
+          receiver?: Database["public"]["Enums"]["payment_receiver"];
           status?: Database["public"]["Enums"]["payment_record_status"];
           updated_at?: string;
           void_reason?: string | null;
@@ -1036,10 +1056,14 @@ export type Database = {
           business_id?: string;
           created_at?: string;
           id?: string;
+          fee_cents?: number;
+          gross_amount_cents?: number;
           method?: Database["public"]["Enums"]["payment_method"];
+          net_amount_cents?: number;
           notes?: string | null;
           paid_at?: string;
           recorded_by_user_id?: string;
+          receiver?: Database["public"]["Enums"]["payment_receiver"];
           status?: Database["public"]["Enums"]["payment_record_status"];
           updated_at?: string;
           void_reason?: string | null;
@@ -1213,11 +1237,18 @@ export type Database = {
           can_add_custom_charge: boolean;
           created_at: string;
           id: string;
+          financial_model: Database["public"]["Enums"]["professional_financial_model"];
+          financial_value: number;
           name: string;
+          payment_receiver: Database["public"]["Enums"]["payment_receiver"];
+          phone: string | null;
+          pix_key: string | null;
           photo_url: string | null;
           setup_completed_at: string | null;
+          receive_booking_whatsapp: boolean;
           updated_at: string;
           user_id: string | null;
+          whatsapp_phone: string | null;
         };
         Insert: {
           active?: boolean;
@@ -1226,11 +1257,18 @@ export type Database = {
           can_add_custom_charge?: boolean;
           created_at?: string;
           id?: string;
+          financial_model?: Database["public"]["Enums"]["professional_financial_model"];
+          financial_value?: number;
           name: string;
+          payment_receiver?: Database["public"]["Enums"]["payment_receiver"];
+          phone?: string | null;
+          pix_key?: string | null;
           photo_url?: string | null;
           setup_completed_at?: string | null;
+          receive_booking_whatsapp?: boolean;
           updated_at?: string;
           user_id?: string | null;
+          whatsapp_phone?: string | null;
         };
         Update: {
           active?: boolean;
@@ -1239,11 +1277,18 @@ export type Database = {
           can_add_custom_charge?: boolean;
           created_at?: string;
           id?: string;
+          financial_model?: Database["public"]["Enums"]["professional_financial_model"];
+          financial_value?: number;
           name?: string;
+          payment_receiver?: Database["public"]["Enums"]["payment_receiver"];
+          phone?: string | null;
+          pix_key?: string | null;
           photo_url?: string | null;
           setup_completed_at?: string | null;
+          receive_booking_whatsapp?: boolean;
           updated_at?: string;
           user_id?: string | null;
+          whatsapp_phone?: string | null;
         };
         Relationships: [
           {
@@ -1636,6 +1681,10 @@ export type Database = {
         };
         Returns: undefined;
       };
+      configure_business_mode: {
+        Args: { p_mode: Database["public"]["Enums"]["business_mode"] };
+        Returns: string;
+      };
       create_business_with_owner: {
         Args: {
           p_name: string;
@@ -1705,6 +1754,16 @@ export type Database = {
         Args: { p_appointment_id: string; p_notes: string };
         Returns: undefined;
       };
+      update_professional_financial_model: {
+        Args: {
+          p_professional_id: string;
+          p_financial_model: Database["public"]["Enums"]["professional_financial_model"];
+          p_financial_value: number;
+          p_payment_receiver: Database["public"]["Enums"]["payment_receiver"];
+          p_pix_key?: string;
+        };
+        Returns: undefined;
+      };
       update_waitlist_status: {
         Args: {
           p_entry_id: string;
@@ -1718,12 +1777,15 @@ export type Database = {
       };
     };
     Enums: {
+      business_mode: "SOLO" | "TEAM";
       appointment_payment_status: "UNPAID" | "PARTIAL" | "PAID";
       appointment_status: "CONFIRMED" | "CANCELLED" | "COMPLETED" | "NO_SHOW";
       commission_status: "PENDING" | "PAID" | "VOIDED";
       commission_type: "PERCENTAGE" | "FIXED";
       member_role: "OWNER" | "PROFESSIONAL" | "RECEPTIONIST";
       payment_method: "PIX" | "CASH" | "DEBIT_CARD" | "CREDIT_CARD" | "OTHER";
+      payment_receiver: "BUSINESS" | "PROFESSIONAL";
+      professional_financial_model: "PROFESSIONAL_KEEPS_ALL" | "BUSINESS_KEEPS_ALL" | "PERCENTAGE_COMMISSION" | "FIXED_COMMISSION";
       payment_record_status: "PAID" | "VOIDED" | "REFUNDED";
       waitlist_status:
         "WAITING" | "CONTACTED" | "BOOKED" | "CANCELLED" | "EXPIRED";
@@ -1854,12 +1916,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      business_mode: ["SOLO", "TEAM"],
       appointment_payment_status: ["UNPAID", "PARTIAL", "PAID"],
       appointment_status: ["CONFIRMED", "CANCELLED", "COMPLETED", "NO_SHOW"],
       commission_status: ["PENDING", "PAID", "VOIDED"],
       commission_type: ["PERCENTAGE", "FIXED"],
       member_role: ["OWNER", "PROFESSIONAL", "RECEPTIONIST"],
       payment_method: ["PIX", "CASH", "DEBIT_CARD", "CREDIT_CARD", "OTHER"],
+      payment_receiver: ["BUSINESS", "PROFESSIONAL"],
+      professional_financial_model: ["PROFESSIONAL_KEEPS_ALL", "BUSINESS_KEEPS_ALL", "PERCENTAGE_COMMISSION", "FIXED_COMMISSION"],
       payment_record_status: ["PAID", "VOIDED", "REFUNDED"],
       waitlist_status: [
         "WAITING",

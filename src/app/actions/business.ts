@@ -43,6 +43,9 @@ export async function createBusiness(formData: FormData) {
         : "Não foi possível criar a empresa.";
     toError("/onboarding", friendly);
   }
+  const mode = formData.get("business_mode") === "TEAM" ? "TEAM" : "SOLO";
+  const { error: modeError } = await supabase.rpc("configure_business_mode", { p_mode: mode });
+  if (modeError) toError("/onboarding", "Empresa criada, mas não foi possível configurar o modo de trabalho.");
   redirect("/painel");
 }
 
@@ -109,6 +112,9 @@ export async function createProfessional(formData: FormData) {
     photo_url: formData.get("photo_url"),
     bio: formData.get("bio"),
     service_ids: formData.getAll("service_ids"),
+    phone: formData.get("phone"),
+    whatsapp_phone: formData.get("whatsapp_phone"),
+    receive_booking_whatsapp: formData.get("receive_booking_whatsapp") === "on",
   });
   if (!parsed.success)
     toError("/painel/profissionais", parsed.error.issues[0].message);
@@ -121,6 +127,9 @@ export async function createProfessional(formData: FormData) {
       name: parsed.data.name,
       photo_url: parsed.data.photo_url,
       bio: parsed.data.bio,
+      phone: parsed.data.phone,
+      whatsapp_phone: parsed.data.whatsapp_phone,
+      receive_booking_whatsapp: parsed.data.receive_booking_whatsapp,
     })
     .select("id")
     .single();
@@ -170,6 +179,9 @@ export async function updateProfessional(formData: FormData) {
     photo_url: formData.get("photo_url"),
     bio: formData.get("bio"),
     service_ids: formData.getAll("service_ids"),
+    phone: formData.get("phone"),
+    whatsapp_phone: formData.get("whatsapp_phone"),
+    receive_booking_whatsapp: formData.get("receive_booking_whatsapp") === "on",
   });
   if (!id.success || !parsed.success)
     toError("/painel/profissionais", "Dados do profissional inválidos.");
@@ -180,6 +192,9 @@ export async function updateProfessional(formData: FormData) {
       name: parsed.data.name,
       photo_url: parsed.data.photo_url,
       bio: parsed.data.bio,
+      phone: parsed.data.phone,
+      whatsapp_phone: parsed.data.whatsapp_phone,
+      receive_booking_whatsapp: parsed.data.receive_booking_whatsapp,
     })
     .eq("id", id.data)
     .eq("business_id", membership.business_id);
@@ -426,6 +441,19 @@ export async function updateBusiness(formData: FormData) {
     toError("/painel/configuracoes", "A URL do logo é inválida.");
 
   const supabase = await createClient();
+  const businessMode = formData.get("business_mode") === "SOLO" ? "SOLO" : "TEAM";
+  const slotInterval = Number(formData.get("slot_interval_minutes") ?? 15);
+  if (![5, 10, 15, 20, 30, 60].includes(slotInterval))
+    toError("/painel/configuracoes", "Escolha um intervalo válido para a agenda.");
+  const allowedMethods = ["PIX", "CASH", "DEBIT_CARD", "CREDIT_CARD", "OTHER"] as const;
+  const acceptedPaymentMethods = formData.getAll("accepted_payment_methods").filter(
+    (value): value is (typeof allowedMethods)[number] => allowedMethods.includes(value as (typeof allowedMethods)[number]),
+  );
+  if (!acceptedPaymentMethods.length) toError("/painel/configuracoes", "Selecione ao menos uma forma de pagamento.");
+  const feeDebit = Math.round(Number(formData.get("fee_debit") ?? 0) * 100);
+  const feeCredit = Math.round(Number(formData.get("fee_credit") ?? 0) * 100);
+  if (![feeDebit, feeCredit].every((fee) => Number.isInteger(fee) && fee >= 0 && fee <= 10000))
+    toError("/painel/configuracoes", "Informe taxas entre 0% e 100%.");
   const { error } = await supabase
     .from("businesses")
     .update({
@@ -443,6 +471,10 @@ export async function updateBusiness(formData: FormData) {
         String(formData.get("reminder_template") ?? "").trim() || null,
       professionals_can_view_commission:
         formData.get("professionals_can_view_commission") === "on",
+      business_mode: businessMode,
+      slot_interval_minutes: slotInterval,
+      accepted_payment_methods: acceptedPaymentMethods,
+      payment_fee_bps: { PIX: 0, CASH: 0, DEBIT_CARD: feeDebit, CREDIT_CARD: feeCredit, OTHER: 0 },
     })
     .eq("id", membership.business_id);
   if (error)

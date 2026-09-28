@@ -136,3 +136,40 @@ export async function markCommissionPaid(formData: FormData) {
     `/painel/financeiro/comissoes?success=${encodeURIComponent("Comissão marcada como paga.")}`,
   );
 }
+
+export async function updateProfessionalFinancialModel(formData: FormData) {
+  await requireOwner();
+  const parsed = z.object({
+    professional_id: z.string().uuid(),
+    financial_model: z.enum([
+      "PROFESSIONAL_KEEPS_ALL",
+      "BUSINESS_KEEPS_ALL",
+      "PERCENTAGE_COMMISSION",
+      "FIXED_COMMISSION",
+    ]),
+    payment_receiver: z.enum(["BUSINESS", "PROFESSIONAL"]),
+    financial_value: z.coerce.number().min(0),
+    pix_key: z.string().trim().max(180).optional(),
+  }).safeParse(Object.fromEntries(formData));
+  if (!parsed.success)
+    fail("/painel/equipe", "Revise a configuração financeira do profissional.");
+  const value = parsed.data.financial_model === "PERCENTAGE_COMMISSION"
+    ? Math.round(parsed.data.financial_value * 100)
+    : parsed.data.financial_model === "FIXED_COMMISSION"
+      ? Math.round(parsed.data.financial_value * 100)
+      : 0;
+  if (parsed.data.financial_model === "PERCENTAGE_COMMISSION" && value > 10000)
+    fail(`/painel/equipe/${parsed.data.professional_id}`, "O percentual não pode passar de 100%.");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("update_professional_financial_model", {
+    p_professional_id: parsed.data.professional_id,
+    p_financial_model: parsed.data.financial_model,
+    p_financial_value: value,
+    p_payment_receiver: parsed.data.payment_receiver,
+    p_pix_key: parsed.data.pix_key || undefined,
+  });
+  if (error) fail(`/painel/equipe/${parsed.data.professional_id}`, "Não foi possível salvar o modelo financeiro.");
+  revalidatePath("/painel/equipe");
+  revalidatePath(`/painel/equipe/${parsed.data.professional_id}`);
+  redirect(`/painel/equipe/${parsed.data.professional_id}?success=${encodeURIComponent("Configuração financeira salva.")}`);
+}

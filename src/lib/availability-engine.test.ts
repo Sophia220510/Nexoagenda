@@ -30,6 +30,10 @@ describe("getAvailableSlotMinutes", () => {
     });
     expect(slots.at(-1)).toBe(16 * 60);
   });
+  it("oferece intervalos de 15 minutos para serviços de 45 minutos", () => {
+    const slots = getAvailableSlotMinutes({ ...base, durationMinutes: 45, appointments: [], blockedTimes: [] });
+    expect(slots.slice(0, 3)).toEqual([540, 555, 570]);
+  });
 
   it("remove candidatos que cruzam um agendamento", () => {
     const slots = getAvailableSlotMinutes({

@@ -161,7 +161,7 @@ h2 {
   align-items: center;
 }
 .landing-hero h1 {
-  font-family: var(--font-display), serif;
+  font-family: var(--font-display), sans-serif;
   font-size: clamp(3.2rem, 6.4vw, 6.1rem);
   line-height: 0.96;
   font-weight: 520;
@@ -2316,8 +2316,52 @@ body {
   justify-content: flex-start;
 }
 .sidebar-head {
+  position: relative;
   padding: 0 10px 22px;
   border-bottom: 1px solid #ffffff12;
+}
+.sidebar-notification {
+  position: absolute;
+  top: -6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  color: #dce5de;
+  background: #ffffff0d;
+}
+.sidebar-notification b,
+.mobile-topbar a b {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 99px;
+  background: var(--nexo-lime);
+  color: var(--nexo-black);
+  font-size: 0.62rem;
+}
+.calendar-event.status-awaiting,
+.mobile-event.status-awaiting {
+  border-color: #e4a11b !important;
+  background: #fff8e8 !important;
+  color: #4a3510 !important;
+}
+.event-confirm-cta {
+  display: inline-flex;
+  margin-top: 5px;
+  padding: 4px 7px;
+  border-radius: 7px;
+  background: #e4a11b;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 800;
 }
 .sidebar-head > p {
   margin: 17px 0 0;
@@ -3189,6 +3233,20 @@ body {
     border: 0;
     border-radius: 10px;
     background: #f0f2ed;
+  }
+  .mobile-topbar > div {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .mobile-topbar > div > a {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    color: var(--nexo-black);
   }
   .mobile-bottom-nav {
     position: fixed;

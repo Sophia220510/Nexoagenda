@@ -143,6 +143,7 @@ export default async function MyAgendaPage({
           date={date}
           basePath="/painel/minha-agenda"
           nowIso={new Date().toISOString()}
+          slotMinutes={membership.businesses?.slot_interval_minutes ?? 15}
         />
       )}
       <BlockedTimesPanel

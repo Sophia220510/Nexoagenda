@@ -20,7 +20,7 @@ export default async function ProfessionalsPage({
     supabase
       .from("professionals")
       .select(
-        "id,name,photo_url,bio,active,user_id,setup_completed_at,professional_services(service_id,active)",
+        "id,name,photo_url,bio,phone,whatsapp_phone,receive_booking_whatsapp,active,user_id,setup_completed_at,financial_model,payment_receiver,professional_services(service_id,active)",
       )
       .eq("business_id", membership.business_id)
       .order("name"),
@@ -38,12 +38,19 @@ export default async function ProfessionalsPage({
       <header className="page-header">
         <div>
           <p className="eyebrow">Equipe</p>
-          <h1>Profissionais</h1>
+          <h1>Equipe</h1>
           <p className="muted">
             Cadastre a equipe e configure agendas individuais.
           </p>
         </div>
       </header>
+      <nav className="view-tabs" aria-label="Seções da equipe">
+        <Link className="active" href="/painel/equipe">Visão geral</Link>
+        <Link href="/painel/equipe">Profissionais</Link>
+        <Link href="/painel/agenda?professional=all">Agenda</Link>
+        <Link href="/painel/relatorios">Produção</Link>
+        <Link href="/painel/financeiro/comissoes">Repasses</Link>
+      </nav>
       <Notice {...await searchParams} />
       <div className="split-grid">
         <section className="panel-card">
@@ -61,6 +68,11 @@ export default async function ProfessionalsPage({
               Bio
               <textarea name="bio" rows={3} />
             </label>
+            <div className="field-grid">
+              <label>Telefone<input name="phone" inputMode="tel" placeholder="(11) 99999-9999" /></label>
+              <label>WhatsApp<input name="whatsapp_phone" inputMode="tel" placeholder="(11) 99999-9999" /></label>
+            </div>
+            <label className="check"><input type="checkbox" name="receive_booking_whatsapp" /> Receber confirmação de novos agendamentos</label>
             <fieldset>
               <legend>Serviços executados</legend>
               {services.map((service) => (
@@ -106,11 +118,12 @@ export default async function ProfessionalsPage({
                             ? "agenda configurada"
                             : "configuração pendente"}
                         </p>
+                        <small>{professional.financial_model.replaceAll("_", " ")} · recebe: {professional.payment_receiver === "BUSINESS" ? "empresa" : "profissional"}</small>
                       </div>
                       <div className="card-actions">
                         <Link
                           className="button-ghost"
-                          href={`/painel/profissionais/${professional.id}`}
+                          href={`/painel/equipe/${professional.id}`}
                         >
                           Configurar agenda
                         </Link>
@@ -166,6 +179,11 @@ export default async function ProfessionalsPage({
                             rows={2}
                           />
                         </label>
+                        <div className="field-grid">
+                          <label>Telefone<input name="phone" inputMode="tel" defaultValue={professional.phone ?? ""} /></label>
+                          <label>WhatsApp<input name="whatsapp_phone" inputMode="tel" defaultValue={professional.whatsapp_phone ?? ""} /></label>
+                        </div>
+                        <label className="check"><input type="checkbox" name="receive_booking_whatsapp" defaultChecked={professional.receive_booking_whatsapp} /> Receber novos agendamentos no WhatsApp</label>
                         <fieldset>
                           <legend>Serviços</legend>
                           {services.map((service) => (

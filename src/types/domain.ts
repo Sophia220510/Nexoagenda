@@ -23,6 +23,10 @@ export interface Membership {
     reminder_2h_enabled?: boolean;
     reminder_template?: string | null;
     professionals_can_view_commission?: boolean;
+    business_mode?: "SOLO" | "TEAM";
+    slot_interval_minutes?: number;
+    accepted_payment_methods?: Array<"PIX" | "CASH" | "DEBIT_CARD" | "CREDIT_CARD" | "OTHER">;
+    payment_fee_bps?: Record<string, number>;
   } | null;
 }
 
@@ -40,6 +44,8 @@ export interface PublicProfessional {
   photo_url: string | null;
   bio: string | null;
   service_ids: string[];
+  whatsapp_phone?: string | null;
+  receive_booking_whatsapp?: boolean;
 }
 
 export interface PublicBusiness {
@@ -52,6 +58,7 @@ export interface PublicBusiness {
   address: string | null;
   instagram_url: string | null;
   timezone: string;
+  slot_interval_minutes?: number;
   professionals: PublicProfessional[];
   services: PublicService[];
 }

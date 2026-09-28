@@ -3,6 +3,8 @@
 import { useMemo, useRef, useState } from "react";
 import type { PublicBusiness } from "@/types/domain";
 import { formatCurrency } from "@/lib/format";
+import { PhoneInput } from "@/components/phone-input";
+import { chooseBookingWhatsapp } from "@/lib/booking-contact";
 
 function dateKey(value: Date) {
   const year = value.getFullYear();
@@ -37,6 +39,7 @@ export function BookingFlow({ business }: { business: PublicBusiness }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [confirmed, setConfirmed] = useState(false);
+  const [customerName, setCustomerName] = useState("");
   const idempotencyKey = useRef("");
   const professionals = useMemo(
     () =>
@@ -102,6 +105,7 @@ export function BookingFlow({ business }: { business: PublicBusiness }) {
     setLoading(true);
     setMessage("");
     const form = new FormData(event.currentTarget);
+    setCustomerName(String(form.get("name") ?? ""));
     if (!idempotencyKey.current) idempotencyKey.current = crypto.randomUUID();
     const response = await fetch("/api/public/book", {
       method: "POST",
@@ -133,7 +137,27 @@ export function BookingFlow({ business }: { business: PublicBusiness }) {
   }
 
   if (confirmed)
-    return (
+    {
+      const professional = business.professionals.find((item) => item.id === professionalId);
+      const destination = chooseBookingWhatsapp({
+        businessPhone: business.phone,
+        professionalPhone: professional?.whatsapp_phone,
+        professionalOptIn: professional?.receive_booking_whatsapp,
+      });
+      const dateLabel = new Intl.DateTimeFormat("pt-BR", {
+        dateStyle: "short", timeStyle: "short", timeZone: business.timezone,
+      }).format(new Date(slot));
+      const whatsappMessage = `Olá! Sou ${customerName}. Acabei de agendar ${selectedService?.name ?? "um atendimento"} com ${professional?.name ?? "a equipe"} para ${dateLabel} pelo NEXO Book.`;
+      const whatsappHref = `https://wa.me/${destination.replace(/\D/g, "")}?text=${encodeURIComponent(whatsappMessage)}`;
+      const start = new Date(slot);
+      const end = new Date(start.getTime() + (selectedService?.default_duration_minutes ?? 30) * 60_000);
+      const icsStamp = (value: Date) => value.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+      const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//NEXO Book//PT-BR", "BEGIN:VEVENT",
+        `DTSTART:${icsStamp(start)}`, `DTEND:${icsStamp(end)}`,
+        `SUMMARY:${selectedService?.name ?? "Atendimento"} - ${business.name}`,
+        `DESCRIPTION:Agendamento com ${professional?.name ?? business.name}`, "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+      const calendarHref = `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`;
+      return (
       <section className="booking-success">
         <span>✓</span>
         <h2>Agendamento confirmado</h2>
@@ -156,10 +180,15 @@ export function BookingFlow({ business }: { business: PublicBusiness }) {
           </span>
         </div>
         <p className="muted">
-          Salve esta informação e, se necessário, fale com o estabelecimento.
+          O horário está reservado. Você pode falar com {professional?.name ?? "o negócio"} ou salvar no calendário.
         </p>
+        <div className="booking-success-actions">
+          <a className="button" href={whatsappHref} target="_blank" rel="noreferrer">Falar pelo WhatsApp</a>
+          <a className="button-ghost" href={calendarHref} download="agendamento-nexo-book.ics">Adicionar ao calendário</a>
+        </div>
       </section>
-    );
+      );
+    }
 
   return (
     <form onSubmit={submit} className="booking-card">
@@ -341,7 +370,7 @@ export function BookingFlow({ business }: { business: PublicBusiness }) {
               </label>
               <label>
                 WhatsApp
-                <input name="phone" required inputMode="tel" />
+                <PhoneInput required />
               </label>
             </div>
             <div className="booking-summary">

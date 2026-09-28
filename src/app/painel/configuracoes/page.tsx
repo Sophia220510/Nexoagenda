@@ -52,6 +52,26 @@ export default async function SettingsPage({
             Fuso horário
             <input name="timezone" defaultValue={business.timezone} required />
           </label>
+          <div className="field-grid">
+            <label>
+              Como você trabalha?
+              <select name="business_mode" defaultValue={business.business_mode ?? "TEAM"}>
+                <option value="SOLO">Trabalho sozinho</option>
+                <option value="TEAM">Tenho uma equipe</option>
+              </select>
+            </label>
+            <label>
+              Intervalo da agenda
+              <select name="slot_interval_minutes" defaultValue={business.slot_interval_minutes ?? 15}>
+                <option value="5">5 minutos</option>
+                <option value="10">10 minutos</option>
+                <option value="15">15 minutos</option>
+                <option value="20">20 minutos</option>
+                <option value="30">30 minutos</option>
+                <option value="60">60 minutos</option>
+              </select>
+            </label>
+          </div>
           <label>
             Descrição pública
             <textarea
@@ -75,6 +95,22 @@ export default async function SettingsPage({
               />
             </label>
           </div>
+          <fieldset className="settings-group">
+            <legend>Formas de pagamento e taxas</legend>
+            <p className="muted">Marque o que você aceita. Taxas são opcionais e começam em 0%.</p>
+            <div className="field-grid">
+              {[
+                ["PIX", "PIX"], ["CASH", "Dinheiro"], ["DEBIT_CARD", "Débito"],
+                ["CREDIT_CARD", "Crédito"], ["OTHER", "Outro"],
+              ].map(([value, label]) => (
+                <label className="check" key={value}><input type="checkbox" name="accepted_payment_methods" value={value} defaultChecked={(business.accepted_payment_methods ?? ["PIX","CASH","DEBIT_CARD","CREDIT_CARD","OTHER"]).includes(value as never)} /> {label}</label>
+              ))}
+            </div>
+            <div className="field-grid">
+              <label>Taxa débito (%)<input name="fee_debit" type="number" min="0" max="100" step="0.01" defaultValue={Number(business.payment_fee_bps?.DEBIT_CARD ?? 0) / 100} /></label>
+              <label>Taxa crédito (%)<input name="fee_credit" type="number" min="0" max="100" step="0.01" defaultValue={Number(business.payment_fee_bps?.CREDIT_CARD ?? 0) / 100} /></label>
+            </div>
+          </fieldset>
           <fieldset className="settings-group">
             <legend>Lembretes por WhatsApp</legend>
             <p className="muted">

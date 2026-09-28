@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DM_Sans, Fraunces } from "next/font/google";
+import { DM_Sans, Manrope } from "next/font/google";
 import "./globals.css";
 
 const sans = DM_Sans({
@@ -7,7 +7,7 @@ const sans = DM_Sans({
   subsets: ["latin"],
 });
 
-const display = Fraunces({
+const display = Manrope({
   variable: "--font-display",
   subsets: ["latin"],
 });
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
   ),
   title: { default: "NEXO Book", template: "%s | NEXO Book" },
-  description: "Agenda inteligente para negócios e profissionais.",
+  description: "Agenda e gestão inteligente para negócios e profissionais.",
   applicationName: "NEXO Book",
   manifest: "/manifest.webmanifest",
   icons: { icon: "/brand/nexo-mark.png", apple: "/brand/nexo-mark.png" },
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     locale: "pt_BR",
     siteName: "NEXO Book",
     title: "NEXO Book",
-    description: "Agenda inteligente para negócios e profissionais.",
+    description: "Agenda e gestão inteligente para negócios e profissionais.",
     images: ["/brand/nexo-mark.png"],
   },
 };

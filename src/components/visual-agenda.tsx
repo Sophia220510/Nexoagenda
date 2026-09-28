@@ -38,11 +38,8 @@ type WeeklyRange = {
   end_time: string;
 };
 
-const START_HOUR = 7;
-const END_HOUR = 21;
-const SLOT_MINUTES = 30;
-const SLOT_COUNT = ((END_HOUR - START_HOUR) * 60) / SLOT_MINUTES;
-const ROW_HEIGHT = 46;
+const DEFAULT_START_MINUTES = 7 * 60;
+const DEFAULT_END_MINUTES = 21 * 60;
 
 const statusLabels: Record<string, string> = {
   PENDING: "Pendente",
@@ -105,6 +102,7 @@ export function VisualAgenda({
   date,
   basePath,
   nowIso,
+  slotMinutes = 15,
   canCreateAppointment = false,
 }: {
   appointments: Appointment[];
@@ -116,6 +114,7 @@ export function VisualAgenda({
   date: string;
   basePath: string;
   nowIso: string;
+  slotMinutes?: number;
   canCreateAppointment?: boolean;
 }) {
   const weekday = new Date(`${date}T12:00:00Z`).getUTCDay();
@@ -139,17 +138,30 @@ export function VisualAgenda({
     timeZone: timezone,
   }).format(new Date(nowIso));
   const nowMinutes = localMinutes(nowIso, timezone);
+  const dayWorkingHours = workingHours.filter(
+    (range) =>
+      range.weekday === weekday &&
+      professionals.some((professional) => professional.id === range.professional_id),
+  );
+  const startMinutes = dayWorkingHours.length
+    ? Math.min(...dayWorkingHours.map((range) => timeToMinutes(range.start_time)))
+    : DEFAULT_START_MINUTES;
+  const endMinutes = dayWorkingHours.length
+    ? Math.max(...dayWorkingHours.map((range) => timeToMinutes(range.end_time)))
+    : DEFAULT_END_MINUTES;
+  const slotCount = Math.max(1, Math.ceil((endMinutes - startMinutes) / slotMinutes));
+  const rowHeight = slotMinutes <= 15 ? 34 : 46;
   const showNow =
     date === today &&
-    nowMinutes >= START_HOUR * 60 &&
-    nowMinutes <= END_HOUR * 60;
+    nowMinutes >= startMinutes &&
+    nowMinutes <= endMinutes;
   const slots = useMemo(
     () =>
       Array.from(
-        { length: SLOT_COUNT },
-        (_, index) => START_HOUR * 60 + index * SLOT_MINUTES,
+        { length: slotCount },
+        (_, index) => startMinutes + index * slotMinutes,
       ),
-    [],
+    [slotCount, slotMinutes, startMinutes],
   );
   const isWorking = (professionalId: string, minutes: number) =>
     workingHours.some(
@@ -157,7 +169,7 @@ export function VisualAgenda({
         range.professional_id === professionalId &&
         range.weekday === weekday &&
         minutes >= timeToMinutes(range.start_time) &&
-        minutes + SLOT_MINUTES <= timeToMinutes(range.end_time),
+        minutes + slotMinutes <= timeToMinutes(range.end_time),
     );
   const isRecurringBlock = (professionalId: string, minutes: number) =>
     recurringBlocks.some(
@@ -165,11 +177,11 @@ export function VisualAgenda({
         range.professional_id === professionalId &&
         range.weekday === weekday &&
         minutes < timeToMinutes(range.end_time) &&
-        minutes + SLOT_MINUTES > timeToMinutes(range.start_time),
+        minutes + slotMinutes > timeToMinutes(range.start_time),
     );
   const gridStyle = {
     gridTemplateColumns: `78px repeat(${Math.max(professionals.length, 1)}, minmax(190px, 1fr))`,
-    gridTemplateRows: `58px repeat(${SLOT_COUNT}, ${ROW_HEIGHT}px)`,
+    gridTemplateRows: `58px repeat(${slotCount}, ${rowHeight}px)`,
   };
   const activeAppointments = appointments.filter(
     (item) => item.status !== "CANCELLED",
@@ -282,7 +294,7 @@ export function VisualAgenda({
             <span className="legend-dot blocked" /> Bloqueado{" "}
             <span className="legend-dot off" /> Fora do expediente
           </div>
-          <span className="agenda-resolution">Intervalos de 30 minutos</span>
+          <span className="agenda-resolution">Intervalos de {slotMinutes} minutos</span>
         </div>
         <div className="calendar-scroll">
           <div className="time-grid" style={gridStyle}>
@@ -338,8 +350,7 @@ export function VisualAgenda({
                 style={{
                   top:
                     58 +
-                    ((nowMinutes - START_HOUR * 60) / SLOT_MINUTES) *
-                      ROW_HEIGHT,
+                    ((nowMinutes - startMinutes) / slotMinutes) * rowHeight,
                 }}
               >
                 <span>Agora</span>
@@ -354,22 +365,25 @@ export function VisualAgenda({
               if (column < 2) return null;
               const start = localMinutes(appointment.starts_at, timezone);
               const end = localMinutes(appointment.ends_at, timezone);
+              const awaitingCompletion =
+                appointment.status === "CONFIRMED" &&
+                new Date(appointment.ends_at) <= new Date(nowIso);
               const row =
                 2 +
                 Math.max(
                   0,
-                  Math.floor((start - START_HOUR * 60) / SLOT_MINUTES),
+                  Math.floor((start - startMinutes) / slotMinutes),
                 );
               const span = Math.max(
                 1,
                 Math.ceil(
-                  (end - Math.max(start, START_HOUR * 60)) / SLOT_MINUTES,
+                  (end - Math.max(start, startMinutes)) / slotMinutes,
                 ),
               );
               return (
                 <Link
                   href={`/painel/agendamentos/${appointment.id}`}
-                  className={`calendar-event appointment-event status-${appointment.status.toLowerCase()}`}
+                  className={`calendar-event appointment-event status-${awaitingCompletion ? "awaiting" : appointment.status.toLowerCase()}`}
                   style={{
                     gridColumn: column,
                     gridRow: `${row} / span ${span}`,
@@ -379,7 +393,7 @@ export function VisualAgenda({
                   <div className="calendar-event-top">
                     <time>{shortTime(appointment.starts_at, timezone)}</time>
                     <em>
-                      {statusLabels[appointment.status] ?? appointment.status}
+                      {awaitingCompletion ? "Aguardando confirmação" : statusLabels[appointment.status] ?? appointment.status}
                     </em>
                   </div>
                   <div className="calendar-event-person">
@@ -390,6 +404,7 @@ export function VisualAgenda({
                     </div>
                   </div>
                   <small>{appointment.customers?.phone}</small>
+                  {awaitingCompletion && <span className="event-confirm-cta">Confirmar atendimento</span>}
                 </Link>
               );
             })}
@@ -405,12 +420,12 @@ export function VisualAgenda({
                 2 +
                 Math.max(
                   0,
-                  Math.floor((start - START_HOUR * 60) / SLOT_MINUTES),
+                  Math.floor((start - startMinutes) / slotMinutes),
                 );
               const span = Math.max(
                 1,
                 Math.ceil(
-                  (end - Math.max(start, START_HOUR * 60)) / SLOT_MINUTES,
+                  (end - Math.max(start, startMinutes)) / slotMinutes,
                 ),
               );
               return (
@@ -443,7 +458,7 @@ export function VisualAgenda({
             const isCurrent =
               showNow &&
               nowMinutes >= minutes &&
-              nowMinutes < minutes + SLOT_MINUTES;
+              nowMinutes < minutes + slotMinutes;
             const singleProfessional = professionals[0];
             const mobileAvailable =
               Boolean(singleProfessional) &&
@@ -463,13 +478,13 @@ export function VisualAgenda({
                   {slotAppointments.map((item) => (
                     <Link
                       href={`/painel/agendamentos/${item.id}`}
-                      className={`mobile-event status-${item.status.toLowerCase()}`}
+                      className={`mobile-event status-${item.status === "CONFIRMED" && new Date(item.ends_at) <= new Date(nowIso) ? "awaiting" : item.status.toLowerCase()}`}
                       key={item.id}
                     >
                       <span className="mobile-event-heading">
                         <b>{item.customers?.name?.slice(0, 1) ?? "C"}</b>
                         <strong>{item.customers?.name}</strong>
-                        <em>{statusLabels[item.status] ?? item.status}</em>
+                        <em>{item.status === "CONFIRMED" && new Date(item.ends_at) <= new Date(nowIso) ? "Aguardando confirmação" : statusLabels[item.status] ?? item.status}</em>
                       </span>
                       <span>
                         {item.services?.name} · {item.professionals?.name}
@@ -641,7 +656,7 @@ export function VisualAgenda({
                 <input
                   name="start_time"
                   type="time"
-                  step="1800"
+                  step={slotMinutes * 60}
                   defaultValue={
                     selectedSlot ? minutesToTime(selectedSlot.minutes) : "09:00"
                   }
@@ -653,10 +668,10 @@ export function VisualAgenda({
                 <input
                   name="end_time"
                   type="time"
-                  step="1800"
+                  step={slotMinutes * 60}
                   defaultValue={
                     selectedSlot
-                      ? minutesToTime(selectedSlot.minutes + SLOT_MINUTES)
+                      ? minutesToTime(selectedSlot.minutes + slotMinutes)
                       : "10:00"
                   }
                   required
