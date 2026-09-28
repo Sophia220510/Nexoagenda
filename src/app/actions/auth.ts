@@ -1,9 +1,17 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { internalAuthIdentifier, normalizeUsername } from "@/lib/username";
+import {
+  getStoredAccount,
+  removeSavedAccount,
+  saveAccount,
+  updateSavedAccountToken,
+  type SavedAccount,
+} from "@/lib/saved-accounts";
 
 const credentialsSchema = z.object({
   email: z.string().email("Informe um e-mail válido."),
@@ -15,6 +23,72 @@ const usernameCredentialsSchema = z.object({
 });
 function messageUrl(path: string, type: "error" | "success", message: string) {
   return `${path}?${type}=${encodeURIComponent(message)}`;
+}
+
+async function getAccountContext(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  user: { id: string; email?: string; user_metadata?: Record<string, unknown> },
+  usernameFallback = "",
+) {
+  const [{ data: identity }, { data: membership }, { data: platformAdmin }] =
+    await Promise.all([
+      supabase
+        .from("login_identities")
+        .select("username,active")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      supabase
+        .from("business_members")
+        .select("role,businesses(name)")
+        .eq("user_id", user.id)
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("platform_admins")
+        .select("user_id")
+        .eq("user_id", user.id)
+        .eq("active", true)
+        .maybeSingle(),
+    ]);
+
+  if (identity && !identity.active) return null;
+  let destination = platformAdmin ? "/admin" : "/painel";
+  if (!platformAdmin && !membership) destination = "/onboarding";
+  if (membership?.role === "PROFESSIONAL") {
+    const { data: professional } = await supabase
+      .from("professionals")
+      .select("setup_completed_at")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    destination = professional?.setup_completed_at
+      ? "/painel/minha-agenda"
+      : "/painel/configuracao-inicial";
+  }
+
+  const business = membership?.businesses as unknown as { name: string } | null;
+  const role = platformAdmin
+    ? "Administrador supremo"
+    : membership?.role === "OWNER"
+      ? "Dono"
+      : membership?.role === "RECEPTIONIST"
+        ? "Recepcionista"
+        : membership?.role === "PROFESSIONAL"
+          ? "Profissional"
+          : "Conta";
+  const account: SavedAccount = {
+    userId: user.id,
+    username: identity?.username ?? usernameFallback,
+    name:
+      (typeof user.user_metadata?.full_name === "string" &&
+        user.user_metadata.full_name) ||
+      identity?.username ||
+      user.email?.split("@")[0] ||
+      "Usuário",
+    role,
+    businessName: platformAdmin ? "Plataforma NEXO" : business?.name ?? "NEXO",
+    destination,
+  };
+  return { account, destination };
 }
 
 export async function login(formData: FormData) {
@@ -39,44 +113,90 @@ export async function login(formData: FormData) {
   });
   if (error)
     redirect(messageUrl("/login", "error", "Usuário ou senha inválidos."));
-  const { data: identity } = await supabase
-    .from("login_identities")
-    .select("active")
-    .eq("user_id", data.user.id)
-    .maybeSingle();
-  if (identity && !identity.active) {
+  const context = await getAccountContext(
+    supabase,
+    data.user,
+    parsed.data.username,
+  );
+  if (!context) {
     await supabase.auth.signOut();
     redirect(messageUrl("/login", "error", "Usuário ou senha inválidos."));
   }
-  const [{ data: membership }, { data: platformAdmin }] = await Promise.all([
-    supabase
-      .from("business_members")
-      .select("role")
-      .eq("user_id", data.user.id)
-      .limit(1)
-      .maybeSingle(),
-    supabase
-      .from("platform_admins")
-      .select("user_id")
-      .eq("user_id", data.user.id)
-      .eq("active", true)
-      .maybeSingle(),
+  if (formData.get("remember_account") === "on" && data.session)
+    await saveAccount(context.account, data.session.refresh_token);
+  redirect(context.destination);
+}
+
+export async function switchAccount(formData: FormData) {
+  const userId = z.string().uuid().safeParse(formData.get("user_id"));
+  if (!userId.success)
+    redirect(messageUrl("/login", "error", "Conta salva inválida."));
+  const target = await getStoredAccount(userId.data);
+  if (!target)
+    redirect(messageUrl("/login", "error", "Essa conta não está mais salva."));
+
+  const supabase = await createClient();
+  const [{ data: current }, { data: verifiedCurrent }] = await Promise.all([
+    supabase.auth.getSession(),
+    supabase.auth.getUser(),
   ]);
-  if (platformAdmin) redirect("/admin");
-  if (!membership) redirect("/onboarding");
-  if (membership.role === "PROFESSIONAL") {
-    const { data: professional } = await supabase
-      .from("professionals")
-      .select("setup_completed_at")
-      .eq("user_id", data.user.id)
-      .maybeSingle();
+  if (
+    current.session &&
+    verifiedCurrent.user?.id === current.session.user.id
+  )
+    await updateSavedAccountToken(
+      current.session.user.id,
+      current.session.refresh_token,
+    );
+
+  const { data, error } = await supabase.auth.refreshSession({
+    refresh_token: target.refreshToken,
+  });
+  if (error || !data.session || data.session.user.id !== userId.data) {
+    await removeSavedAccount(userId.data);
     redirect(
-      professional?.setup_completed_at
-        ? "/painel/minha-agenda"
-        : "/painel/configuracao-inicial",
+      messageUrl(
+        "/login",
+        "error",
+        "A sessão dessa conta expirou. Entre novamente para salvá-la.",
+      ),
     );
   }
-  redirect("/painel");
+  const context = await getAccountContext(
+    supabase,
+    data.session.user,
+    target.username,
+  );
+  if (!context) {
+    await removeSavedAccount(userId.data);
+    await supabase.auth.signOut({ scope: "local" });
+    redirect(messageUrl("/login", "error", "Essa conta está inativa."));
+  }
+  await saveAccount(context.account, data.session.refresh_token);
+  redirect(context.destination);
+}
+
+export async function forgetSavedAccount(formData: FormData) {
+  const userId = z.string().uuid().safeParse(formData.get("user_id"));
+  if (userId.success) await removeSavedAccount(userId.data);
+  revalidatePath("/login");
+  revalidatePath("/painel", "layout");
+  revalidatePath("/admin", "layout");
+}
+
+export async function addAnotherAccount() {
+  const supabase = await createClient();
+  const [{ data }, { data: verified }] = await Promise.all([
+    supabase.auth.getSession(),
+    supabase.auth.getUser(),
+  ]);
+  if (data.session && verified.user?.id === data.session.user.id) {
+    const context = await getAccountContext(supabase, verified.user);
+    if (context)
+      await saveAccount(context.account, data.session.refresh_token);
+    await supabase.auth.signOut({ scope: "local" });
+  }
+  redirect("/login?add=1");
 }
 
 export async function signup(formData: FormData) {
@@ -183,6 +303,15 @@ export async function changeTemporaryPassword(formData: FormData) {
 
 export async function logout() {
   const supabase = await createClient();
-  await supabase.auth.signOut();
+  const [{ data }, { data: verified }] = await Promise.all([
+    supabase.auth.getSession(),
+    supabase.auth.getUser(),
+  ]);
+  if (data.session && verified.user?.id === data.session.user.id)
+    await updateSavedAccountToken(
+      data.session.user.id,
+      data.session.refresh_token,
+    );
+  await supabase.auth.signOut({ scope: "local" });
   redirect("/login");
 }

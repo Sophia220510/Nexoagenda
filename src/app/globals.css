@@ -2525,7 +2525,7 @@ body {
 }
 .sidebar-user {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) 36px;
+  grid-template-columns: 40px minmax(0, 1fr) 36px 36px;
   align-items: center;
   gap: 10px;
   padding: 15px 10px 4px;
@@ -2568,6 +2568,157 @@ body {
 .sidebar-user button:hover {
   background: #ffffff12;
   color: #fff;
+}
+.account-switcher-trigger {
+  color: var(--nexo-lime) !important;
+}
+.account-switcher-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid !important;
+  place-items: center;
+  padding: 20px;
+  background: #07100bbb;
+  backdrop-filter: blur(5px);
+}
+.account-switcher-overlay > div {
+  display: block !important;
+  width: min(100%, 540px);
+}
+.account-switcher-content {
+  display: grid !important;
+  gap: 14px;
+  width: 100%;
+  padding: 22px;
+  border: 1px solid #dfe5dd;
+  border-radius: 18px;
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 24px 80px #07100b33;
+}
+.account-switcher-content.is-login {
+  margin-top: 22px;
+  padding: 16px;
+  border-radius: 14px;
+  box-shadow: none;
+  background: #f7f9f5;
+}
+.account-switcher-heading {
+  display: flex !important;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.account-switcher-heading > div {
+  display: grid !important;
+  gap: 3px;
+}
+.account-switcher-heading strong {
+  font-size: 1rem;
+}
+.account-switcher-heading small,
+.account-security-note {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.account-switcher-heading > button {
+  color: var(--muted);
+  background: #eef1ec;
+}
+.saved-account-list {
+  display: grid !important;
+  gap: 8px;
+}
+.saved-account-row {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+.saved-account-row > span:first-child {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--forest);
+  color: var(--nexo-lime);
+  font-weight: 900;
+}
+.saved-account-row > div {
+  display: grid !important;
+  min-width: 0;
+  gap: 2px;
+}
+.saved-account-row strong,
+.saved-account-row small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.saved-account-row small {
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+.saved-account-row button {
+  width: auto;
+  height: 34px;
+}
+.account-switch-button {
+  padding: 0 12px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--forest) !important;
+  color: #fff !important;
+  font-weight: 800;
+}
+.forget-account {
+  color: #9a5147 !important;
+}
+.current-account {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 99px;
+  background: #eaf4dc;
+  color: var(--green);
+}
+.add-account-button {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100% !important;
+  height: 42px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 10px !important;
+  background: #fff !important;
+  color: var(--ink) !important;
+  font-weight: 800;
+}
+.account-security-note {
+  margin: 0;
+  text-align: center;
+  font-weight: 500;
+}
+.remember-account {
+  grid-template-columns: auto 1fr !important;
+  align-items: center;
+  justify-content: flex-start;
+}
+.remember-account input {
+  width: auto;
+}
+@media (max-width: 560px) {
+  .saved-account-row {
+    grid-template-columns: 38px minmax(0, 1fr) auto auto;
+  }
 }
 .dashboard-main {
   max-width: 1540px;

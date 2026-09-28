@@ -3,6 +3,8 @@ import { login } from "@/app/actions/auth";
 import { AuthCard } from "@/components/auth-card";
 import { Notice } from "@/components/notice";
 import { SubmitButton } from "@/components/submit-button";
+import { AccountSwitcher } from "@/components/account-switcher";
+import { getSavedAccounts } from "@/lib/saved-accounts";
 
 export default async function LoginPage({
   searchParams,
@@ -10,6 +12,7 @@ export default async function LoginPage({
   searchParams: Promise<{ error?: string; success?: string }>;
 }) {
   const query = await searchParams;
+  const savedAccounts = await getSavedAccounts();
   return (
     <AuthCard
       title="Entre na sua conta"
@@ -21,6 +24,7 @@ export default async function LoginPage({
       }
     >
       <Notice {...query} />
+      <AccountSwitcher accounts={savedAccounts} mode="login" />
       <form action={login} className="form-stack">
         <label>
           Usuário
@@ -35,6 +39,10 @@ export default async function LoginPage({
             minLength={8}
             required
           />
+        </label>
+        <label className="check remember-account">
+          <input type="checkbox" name="remember_account" defaultChecked />
+          Salvar esta conta neste navegador
         </label>
         <SubmitButton pendingText="Entrando...">Entrar</SubmitButton>
       </form>

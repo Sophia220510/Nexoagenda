@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { logout } from "@/app/actions/auth";
 import { NexoBrand } from "@/components/nexo-brand";
+import { AccountSwitcher } from "@/components/account-switcher";
+import type { SavedAccount } from "@/lib/saved-accounts";
 
 const links = [
   ["/admin", "Visão geral", Gauge],
@@ -31,7 +33,17 @@ const links = [
   ["/admin/configuracoes", "Configurações", Settings],
 ] as const;
 
-export function AdminNav({ unreadCount = 0 }: { unreadCount?: number }) {
+export function AdminNav({
+  unreadCount = 0,
+  savedAccounts,
+  currentUserId,
+  userName,
+}: {
+  unreadCount?: number;
+  savedAccounts: SavedAccount[];
+  currentUserId?: string;
+  userName: string;
+}) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const active = (href: string) =>
@@ -72,9 +84,13 @@ export function AdminNav({ unreadCount = 0 }: { unreadCount?: number }) {
             <ShieldCheck size={19} />
           </span>
           <div>
-            <strong>Master Admin</strong>
+            <strong>{userName}</strong>
             <small>Plataforma NEXO</small>
           </div>
+          <AccountSwitcher
+            accounts={savedAccounts}
+            currentUserId={currentUserId}
+          />
           <form action={logout}>
             <button aria-label="Sair">
               <LogOut size={18} />

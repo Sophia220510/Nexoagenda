@@ -6,6 +6,7 @@ import {
   requirePasswordChanged,
 } from "@/lib/auth";
 import { getUnreadNotificationCount } from "@/lib/notifications";
+import { getSavedAccounts } from "@/lib/saved-accounts";
 
 export default async function DashboardLayout({
   children,
@@ -21,6 +22,7 @@ export default async function DashboardLayout({
     businessId: membership.business_id,
     professionalId: professional?.id,
   });
+  const savedAccounts = await getSavedAccounts();
   return (
     <div className="dashboard-shell">
       <DashboardNav
@@ -31,6 +33,8 @@ export default async function DashboardLayout({
           user?.email?.split("@")[0] ??
           "Usuário"
         }
+        savedAccounts={savedAccounts}
+        currentUserId={user?.id}
       />
       <main className="dashboard-main">{children}</main>
     </div>

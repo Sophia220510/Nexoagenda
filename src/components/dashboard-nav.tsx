@@ -23,6 +23,8 @@ import {
 import { logout } from "@/app/actions/auth";
 import { NexoBrand } from "@/components/nexo-brand";
 import type { Membership } from "@/types/domain";
+import { AccountSwitcher } from "@/components/account-switcher";
+import type { SavedAccount } from "@/lib/saved-accounts";
 
 const ownerLinks = [
   ["/painel", "Início", Home],
@@ -65,10 +67,14 @@ export function DashboardNav({
   membership,
   unreadCount = 0,
   userName,
+  savedAccounts,
+  currentUserId,
 }: {
   membership: Membership;
   unreadCount?: number;
   userName: string;
+  savedAccounts: SavedAccount[];
+  currentUserId?: string;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -145,6 +151,10 @@ export function DashboardNav({
                   : "Profissional"}
             </small>
           </div>
+          <AccountSwitcher
+            accounts={savedAccounts}
+            currentUserId={currentUserId}
+          />
           <form action={logout}>
             <button aria-label="Sair">
               <LogOut size={18} />
