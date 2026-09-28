@@ -4,6 +4,46 @@ import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/format";
 
+type AdminSummary = {
+  business_count: number;
+  active_business_count: number;
+  user_count: number;
+  professional_count: number;
+  customer_count: number;
+  appointment_count: number;
+  today_appointment_count: number;
+  new_business_count: number;
+  recent_businesses: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    active: boolean;
+    created_at: string;
+  }>;
+  recent_appointments: Array<{
+    id: string;
+    starts_at: string;
+    status: string;
+    business_name: string;
+    business_timezone: string;
+    customer_name: string;
+    professional_name: string;
+  }>;
+};
+
+const emptySummary: AdminSummary = {
+  business_count: 0,
+  active_business_count: 0,
+  user_count: 0,
+  professional_count: 0,
+  customer_count: 0,
+  appointment_count: 0,
+  today_appointment_count: 0,
+  new_business_count: 0,
+  recent_businesses: [],
+  recent_appointments: [],
+};
+
 export default async function AdminDashboardPage() {
   const supabase = await createClient();
   const timezone = "America/Sao_Paulo";
@@ -12,60 +52,23 @@ export default async function AdminDashboardPage() {
   const tomorrow = addDays(today, 1);
   const monthAgo = new Date(today);
   monthAgo.setDate(monthAgo.getDate() - 30);
-  const [
-    businesses,
-    activeBusinesses,
-    users,
-    professionals,
-    customers,
-    appointments,
-    todayAppointments,
-    newBusinesses,
-    recent,
-    recentAppointments,
-  ] = await Promise.all([
-    supabase.from("businesses").select("id", { count: "exact", head: true }),
-    supabase
-      .from("businesses")
-      .select("id", { count: "exact", head: true })
-      .eq("active", true),
-    supabase
-      .from("login_identities")
-      .select("id", { count: "exact", head: true }),
-    supabase.from("professionals").select("id", { count: "exact", head: true }),
-    supabase.from("customers").select("id", { count: "exact", head: true }),
-    supabase.from("appointments").select("id", { count: "exact", head: true }),
-    supabase
-      .from("appointments")
-      .select("id", { count: "exact", head: true })
-      .gte("starts_at", today.toISOString())
-      .lt("starts_at", tomorrow.toISOString()),
-    supabase
-      .from("businesses")
-      .select("id", { count: "exact", head: true })
-      .gte("created_at", monthAgo.toISOString()),
-    supabase
-      .from("businesses")
-      .select("id,name,slug,active,created_at")
-      .order("created_at", { ascending: false })
-      .limit(6),
-    supabase
-      .from("appointments")
-      .select(
-        "id,starts_at,status,businesses(name,timezone),customers(name),professionals(name)",
-      )
-      .order("created_at", { ascending: false })
-      .limit(6),
-  ]);
+  const { data } = await supabase.rpc("admin_dashboard_summary", {
+    p_today_start: today.toISOString(),
+    p_tomorrow_start: tomorrow.toISOString(),
+    p_month_ago: monthAgo.toISOString(),
+  });
+  const summary = (data && typeof data === "object" && !Array.isArray(data)
+    ? data
+    : emptySummary) as unknown as AdminSummary;
   const stats = [
-    ["Estabelecimentos", businesses.count],
-    ["Estabelecimentos ativos", activeBusinesses.count],
-    ["Usuários", users.count],
-    ["Profissionais", professionals.count],
-    ["Clientes", customers.count],
-    ["Agendamentos", appointments.count],
-    ["Agendamentos hoje (Brasília)", todayAppointments.count],
-    ["Novos estabelecimentos", newBusinesses.count],
+    ["Estabelecimentos", summary.business_count],
+    ["Estabelecimentos ativos", summary.active_business_count],
+    ["Usuários", summary.user_count],
+    ["Profissionais", summary.professional_count],
+    ["Clientes", summary.customer_count],
+    ["Agendamentos", summary.appointment_count],
+    ["Agendamentos hoje (Brasília)", summary.today_appointment_count],
+    ["Novos estabelecimentos", summary.new_business_count],
   ];
   return (
     <>
@@ -96,7 +99,7 @@ export default async function AdminDashboardPage() {
             <Link href="/admin/empresas">Ver todos</Link>
           </div>
           <div className="list">
-            {(recent.data ?? []).map((business) => (
+            {summary.recent_businesses.map((business) => (
               <Link
                 className="list-row"
                 href={`/admin/empresas/${business.id}`}
@@ -128,41 +131,22 @@ export default async function AdminDashboardPage() {
             <Link href="/admin/agendamentos">Ver todos</Link>
           </div>
           <div className="list">
-            {(recentAppointments.data ?? []).map((appointment) => {
-              const business = appointment.businesses as unknown as {
-                name: string;
-                timezone: string;
-              } | null;
+            {summary.recent_appointments.map((appointment) => {
               return (
                 <article className="list-row" key={appointment.id}>
                   <div>
-                    <strong>
-                      {
-                        (
-                          appointment.customers as unknown as {
-                            name: string;
-                          } | null
-                        )?.name
-                      }
-                    </strong>
-                    <p>{business?.name}</p>
+                    <strong>{appointment.customer_name}</strong>
+                    <p>{appointment.business_name}</p>
                   </div>
                   <div className="align-right">
                     <span>
                       {formatDateTime(
                         appointment.starts_at,
-                        business?.timezone ?? "America/Sao_Paulo",
+                        appointment.business_timezone ?? "America/Sao_Paulo",
                       )}
                     </span>
                     <small>
-                      {
-                        (
-                          appointment.professionals as unknown as {
-                            name: string;
-                          } | null
-                        )?.name
-                      }{" "}
-                      · {appointment.status}
+                      {appointment.professional_name} · {appointment.status}
                     </small>
                   </div>
                 </article>

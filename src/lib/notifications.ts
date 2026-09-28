@@ -51,14 +51,10 @@ export async function getUnreadNotificationCount({
   professionalId,
 }: { businessId?: string; professionalId?: string } = {}) {
   const supabase = await createClient();
-  let query = supabase
-    .from("notification_events")
-    .select("id,notification_reads(user_id)")
-    .order("created_at", { ascending: false })
-    .limit(200);
-  if (businessId) query = query.eq("business_id", businessId);
-  if (professionalId) query = query.eq("professional_id", professionalId);
-  const { data, error } = await query;
+  const { data, error } = await supabase.rpc("get_unread_notification_count", {
+    p_business_id: businessId ?? null,
+    p_professional_id: professionalId ?? null,
+  });
   if (error) return 0;
-  return (data ?? []).filter((item) => !item.notification_reads?.length).length;
+  return Number(data ?? 0);
 }

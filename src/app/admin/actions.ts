@@ -85,7 +85,6 @@ export async function updateBusinessAsAdmin(formData: FormData) {
         business_mode: operationProfile.data === "SOLO" ? "SOLO" : "TEAM",
         feature_flags: featureFlags,
         cash_closing_enabled: featureFlags.cash_closing,
-        reminders_enabled: featureFlags.whatsapp_reminders,
       })
       .eq("id", id.data);
     if (capabilityError)
@@ -336,8 +335,6 @@ export async function createBusinessAsAdmin(
           parsed.data.business.operation_profile === "SOLO" ? "SOLO" : "TEAM",
         feature_flags: parsed.data.business.feature_flags,
         cash_closing_enabled: parsed.data.business.feature_flags.cash_closing,
-        reminders_enabled:
-          parsed.data.business.feature_flags.whatsapp_reminders,
       })
       .eq("id", businessId);
     if (capabilityError) throw capabilityError;

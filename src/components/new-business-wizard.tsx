@@ -14,6 +14,7 @@ import {
   type FeatureFlags,
   type OperationProfile,
 } from "@/lib/operation-profiles";
+import { getServicePresets } from "@/lib/service-presets";
 
 type UserInput = {
   name: string;
@@ -155,9 +156,16 @@ export function NewBusinessWizard() {
                 Categoria
                 <select
                   value={business.business_type}
-                  onChange={(e) =>
-                    setBusiness({ ...business, business_type: e.target.value })
-                  }
+                  onChange={(e) => {
+                    const businessType = e.target.value;
+                    const suggestedServices = getServicePresets(businessType);
+                    setBusiness({ ...business, business_type: businessType });
+                    setServices(
+                      suggestedServices.length
+                        ? suggestedServices
+                        : [{ name: "", price: "", duration_minutes: 60 }],
+                    );
+                  }}
                 >
                   {categories.map(([value, label]) => (
                     <option value={value} key={value}>
@@ -368,7 +376,24 @@ export function NewBusinessWizard() {
       {step === 3 && (
         <div>
           <p className="eyebrow">3. Serviços</p>
-          <h2>Catálogo inicial</h2>
+          <h2>Catálogo inicial editável</h2>
+          {getServicePresets(business.business_type).length > 0 && (
+            <div className="section-title">
+              <p className="muted">
+                Preenchemos sugestões comuns para esta categoria. Edite, remova ou
+                adicione o que quiser.
+              </p>
+              <button
+                type="button"
+                className="text-link"
+                onClick={() =>
+                  setServices(getServicePresets(business.business_type))
+                }
+              >
+                Restaurar sugestões
+              </button>
+            </div>
+          )}
           {services.map((service, index) => (
             <div className="repeater-card field-grid" key={index}>
               <label>

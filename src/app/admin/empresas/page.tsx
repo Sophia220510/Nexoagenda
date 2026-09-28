@@ -2,24 +2,24 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 
+type BusinessOverview = {
+  id: string;
+  name: string;
+  slug: string;
+  phone: string;
+  logo_url: string | null;
+  business_type: string;
+  active: boolean;
+  created_at: string;
+  professional_count: number;
+  customer_count: number;
+  appointment_count: number;
+};
+
 export default async function AdminBusinessesPage() {
   const supabase = await createClient();
-  const [
-    businessesResult,
-    professionalsResult,
-    customersResult,
-    appointmentsResult,
-  ] = await Promise.all([
-    supabase
-      .from("businesses")
-      .select("id,name,slug,phone,logo_url,business_type,active,created_at")
-      .order("created_at", { ascending: false }),
-    supabase.from("professionals").select("business_id"),
-    supabase.from("customers").select("business_id"),
-    supabase.from("appointments").select("business_id"),
-  ]);
-  const count = (rows: Array<{ business_id: string }> | null, id: string) =>
-    (rows ?? []).filter((row) => row.business_id === id).length;
+  const { data } = await supabase.rpc("admin_list_business_overview");
+  const businesses = (Array.isArray(data) ? data : []) as BusinessOverview[];
   return (
     <>
       <header className="page-header">
@@ -36,7 +36,7 @@ export default async function AdminBusinessesPage() {
       </header>
       <section className="panel-card">
         <div className="list">
-          {(businessesResult.data ?? []).map((business) => (
+          {businesses.map((business) => (
             <Link
               className="list-row"
               href={`/admin/empresas/${business.id}`}
@@ -59,9 +59,9 @@ export default async function AdminBusinessesPage() {
               <div className="align-right">
                 <span>{business.active ? "Ativa" : "Inativa"}</span>
                 <small>
-                  {count(professionalsResult.data, business.id)} profissionais ·{" "}
-                  {count(customersResult.data, business.id)} clientes ·{" "}
-                  {count(appointmentsResult.data, business.id)} agendamentos
+                  {business.professional_count} profissionais ·{" "}
+                  {business.customer_count} clientes ·{" "}
+                  {business.appointment_count} agendamentos
                 </small>
               </div>
             </Link>

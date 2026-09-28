@@ -1582,6 +1582,15 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      admin_dashboard_summary: {
+        Args: {
+          p_month_ago: string;
+          p_today_start: string;
+          p_tomorrow_start: string;
+        };
+        Returns: Json;
+      };
+      admin_list_business_overview: { Args: never; Returns: Json };
       admin_create_business_bundle: {
         Args: { p_bundle: Json };
         Returns: string;
@@ -1703,6 +1712,13 @@ export type Database = {
       get_financial_summary: {
         Args: { p_end: string; p_start: string };
         Returns: Json;
+      };
+      get_unread_notification_count: {
+        Args: {
+          p_business_id?: string | null;
+          p_professional_id?: string | null;
+        };
+        Returns: number;
       };
       get_public_availability: {
         Args: {

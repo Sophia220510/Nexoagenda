@@ -32,7 +32,7 @@ export default async function AgendaPage({
   const supabase = await createClient();
   const dayStart = fromZonedTime(`${date} 00:00:00`, timezone);
   const dayEnd = addDays(dayStart, 1);
-  const [pros, upcomingBlocks] = await Promise.all([
+  const [pros, upcomingBlocks, ownProfessional] = await Promise.all([
     supabase
       .from("professionals")
       .select("id,name")
@@ -46,14 +46,14 @@ export default async function AgendaPage({
       .gte("ends_at", new Date().toISOString())
       .order("starts_at")
       .limit(30),
+    supabase
+      .from("professionals")
+      .select("id,name")
+      .eq("business_id", membership.business_id)
+      .eq("user_id", membership.user_id)
+      .eq("active", true)
+      .maybeSingle(),
   ]);
-  const ownProfessional = await supabase
-    .from("professionals")
-    .select("id,name")
-    .eq("business_id", membership.business_id)
-    .eq("user_id", membership.user_id)
-    .eq("active", true)
-    .maybeSingle();
   const professionalId =
     query.professional === "all"
       ? undefined

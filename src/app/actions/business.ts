@@ -464,11 +464,6 @@ export async function updateBusiness(formData: FormData) {
       description: String(formData.get("description") ?? "").trim() || null,
       address: String(formData.get("address") ?? "").trim() || null,
       instagram_url: instagram || null,
-      reminders_enabled: formData.get("reminders_enabled") === "on",
-      reminder_24h_enabled: formData.get("reminder_24h_enabled") === "on",
-      reminder_2h_enabled: formData.get("reminder_2h_enabled") === "on",
-      reminder_template:
-        String(formData.get("reminder_template") ?? "").trim() || null,
       professionals_can_view_commission:
         formData.get("professionals_can_view_commission") === "on",
       business_mode: businessMode,

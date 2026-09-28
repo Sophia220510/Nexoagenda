@@ -112,46 +112,12 @@ export default async function SettingsPage({
             </div>
           </fieldset>
           <fieldset className="settings-group">
-            <legend>Lembretes por WhatsApp</legend>
+            <legend>Notificações no site</legend>
             <p className="muted">
-              A fila fica preparada, mas nenhuma mensagem é marcada como enviada
-              sem um provedor configurado.
+              Agendamentos, alterações, bloqueios e atividades importantes aparecem
+              na central de notificações do painel.
             </p>
-            <label className="check">
-              <input
-                type="checkbox"
-                name="reminders_enabled"
-                defaultChecked={business.reminders_enabled}
-              />{" "}
-              Ativar automação
-            </label>
-            <label className="check">
-              <input
-                type="checkbox"
-                name="reminder_24h_enabled"
-                defaultChecked={business.reminder_24h_enabled}
-              />{" "}
-              Lembrete 24 horas antes
-            </label>
-            <label className="check">
-              <input
-                type="checkbox"
-                name="reminder_2h_enabled"
-                defaultChecked={business.reminder_2h_enabled}
-              />{" "}
-              Lembrete 2 horas antes
-            </label>
-            <label>
-              Mensagem
-              <textarea
-                name="reminder_template"
-                rows={3}
-                defaultValue={
-                  business.reminder_template ??
-                  "Olá, {cliente}! Lembrando do seu horário em {data} às {hora}."
-                }
-              />
-            </label>
+            <span className="status-active">Ativas para esta empresa</span>
           </fieldset>
           <label className="check">
             <input

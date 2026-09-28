@@ -30,9 +30,9 @@ export const featureDefinitions = [
     description: "Indicadores gerenciais e visão consolidada.",
   },
   {
-    key: "whatsapp_reminders",
-    label: "Lembretes por WhatsApp",
-    description: "Configuração de lembretes de agendamento.",
+    key: "site_notifications",
+    label: "Notificações no site",
+    description: "Avisos de agendamentos, alterações e atividades no painel.",
   },
 ] as const;
 
@@ -63,7 +63,7 @@ export const operationProfiles: Array<{
     description: "Agenda e gestão objetivas para quem atende sozinho.",
     bestFor: "1 profissional",
     businessMode: "SOLO",
-    features: flags("whatsapp_reminders"),
+    features: flags("site_notifications"),
   },
   {
     id: "ESSENTIAL_TEAM",
@@ -75,7 +75,7 @@ export const operationProfiles: Array<{
       "team_management",
       "reception",
       "commissions",
-      "whatsapp_reminders",
+      "site_notifications",
     ),
   },
   {
@@ -90,7 +90,7 @@ export const operationProfiles: Array<{
       "commissions",
       "waitlist",
       "cash_closing",
-      "whatsapp_reminders",
+      "site_notifications",
     ),
   },
   {

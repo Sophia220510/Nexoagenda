@@ -18,10 +18,6 @@ export interface Membership {
     description?: string | null;
     address?: string | null;
     instagram_url?: string | null;
-    reminders_enabled?: boolean;
-    reminder_24h_enabled?: boolean;
-    reminder_2h_enabled?: boolean;
-    reminder_template?: string | null;
     professionals_can_view_commission?: boolean;
     business_mode?: "SOLO" | "TEAM";
     operation_profile?: "SOLO" | "ESSENTIAL_TEAM" | "GROWING_OPERATION" | "STRUCTURED_OPERATION";
