@@ -980,6 +980,114 @@ h2 {
 .wizard-card {
   max-width: 900px;
 }
+.admin-image-upload {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border: 1px dashed #bcc7be;
+  border-radius: 14px;
+  background: #f8faf7;
+}
+.admin-image-preview {
+  width: 76px;
+  height: 76px;
+  flex: 0 0 76px;
+  border-radius: 16px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: #e9eee7;
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-align: center;
+}
+.admin-image-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.upload-button {
+  display: inline-flex !important;
+  width: auto;
+  margin-top: 8px;
+  cursor: pointer;
+}
+.upload-button input {
+  display: none;
+}
+.admin-image-upload .text-link {
+  margin-left: 12px;
+}
+.operation-profile-section {
+  display: grid;
+  gap: 16px;
+  margin-top: 8px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+.operation-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.operation-profile-card {
+  display: grid;
+  gap: 5px;
+  text-align: left;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+}
+.operation-profile-card:hover,
+.operation-profile-card.active {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px #1d614d14;
+}
+.operation-profile-card.active {
+  background: #f2f8e9;
+}
+.operation-profile-card span {
+  color: var(--green);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+.operation-profile-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.feature-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.feature-choice {
+  display: flex !important;
+  grid-template-columns: none !important;
+  align-items: flex-start;
+  gap: 10px !important;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+.feature-choice input {
+  width: auto !important;
+  margin-top: 3px;
+}
+.feature-choice span {
+  display: grid;
+  gap: 3px;
+}
+.feature-choice small {
+  color: var(--muted);
+  font-weight: 400;
+  line-height: 1.35;
+}
 .wizard-progress {
   display: flex;
   gap: 8px;
@@ -1082,6 +1190,13 @@ h2 {
   .agenda-filter {
     align-items: stretch;
     flex-direction: column;
+  }
+  .operation-profile-grid,
+  .feature-choice-grid {
+    grid-template-columns: 1fr;
+  }
+  .admin-image-upload {
+    align-items: flex-start;
   }
 }
 .repeater-card {

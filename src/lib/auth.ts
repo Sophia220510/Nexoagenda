@@ -21,7 +21,7 @@ export const getCurrentBusiness = cache(
     const { data, error } = await supabase
       .from("business_members")
       .select(
-        "id,business_id,user_id,role,businesses(id,name,slug,phone,logo_url,timezone,active,description,address,instagram_url,reminders_enabled,reminder_24h_enabled,reminder_2h_enabled,reminder_template,professionals_can_view_commission,business_mode,slot_interval_minutes,accepted_payment_methods,payment_fee_bps)",
+        "id,business_id,user_id,role,businesses(id,name,slug,phone,logo_url,timezone,active,description,address,instagram_url,reminders_enabled,reminder_24h_enabled,reminder_2h_enabled,reminder_template,professionals_can_view_commission,business_mode,operation_profile,feature_flags,slot_interval_minutes,accepted_payment_methods,payment_fee_bps)",
       )
       .eq("user_id", user.id)
       .limit(1)

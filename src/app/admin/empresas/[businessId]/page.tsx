@@ -11,6 +11,13 @@ import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { AddBusinessUserForm } from "@/components/add-business-user-form";
 import { ResetPasswordForm } from "@/components/reset-password-form";
+import { AdminImageUpload } from "@/components/admin-image-upload";
+import {
+  featureDefinitions,
+  normalizeFeatureFlags,
+  operationProfiles,
+  type OperationProfile,
+} from "@/lib/operation-profiles";
 
 export default async function AdminBusinessDetailPage({
   params,
@@ -78,6 +85,7 @@ export default async function AdminBusinessDetailPage({
   ]);
   const business = businessResult.data;
   if (!business) notFound();
+  const featureFlags = normalizeFeatureFlags(business.feature_flags);
   return (
     <>
       <header className="page-header">
@@ -119,14 +127,42 @@ export default async function AdminBusinessDetailPage({
                 required
               />
             </label>
+          </div>
+          <AdminImageUpload
+            label="Logo da empresa"
+            scope="logos"
+            name="logo_url"
+            defaultValue={business.logo_url ?? ""}
+          />
+          <div className="operation-profile-section">
             <label>
-              Logo URL
-              <input
-                name="logo_url"
-                type="url"
-                defaultValue={business.logo_url ?? ""}
-              />
+              Perfil da operação
+              <select
+                name="operation_profile"
+                defaultValue={business.operation_profile as OperationProfile}
+              >
+                {operationProfiles.map((profile) => (
+                  <option value={profile.id} key={profile.id}>
+                    {profile.label} · {profile.bestFor}
+                  </option>
+                ))}
+              </select>
             </label>
+            <div className="feature-choice-grid">
+              {featureDefinitions.map((feature) => (
+                <label className="feature-choice" key={feature.key}>
+                  <input
+                    type="checkbox"
+                    name={`feature_${feature.key}`}
+                    defaultChecked={featureFlags[feature.key]}
+                  />
+                  <span>
+                    <strong>{feature.label}</strong>
+                    <small>{feature.description}</small>
+                  </span>
+                </label>
+              ))}
+            </div>
           </div>
           <label className="check">
             <input
@@ -166,14 +202,12 @@ export default async function AdminBusinessDetailPage({
                     required
                   />
                 </label>
-                <label>
-                  Foto URL
-                  <input
-                    name="photo_url"
-                    type="url"
-                    defaultValue={professional.photo_url ?? ""}
-                  />
-                </label>
+                <AdminImageUpload
+                  label="Foto do profissional"
+                  scope="profiles"
+                  name="photo_url"
+                  defaultValue={professional.photo_url ?? ""}
+                />
                 <label>
                   Bio
                   <textarea name="bio" defaultValue={professional.bio ?? ""} />

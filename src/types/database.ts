@@ -424,9 +424,11 @@ export type Database = {
           description: string | null;
           id: string;
           instagram_url: string | null;
+          feature_flags: Json;
           logo_url: string | null;
           name: string;
           notification_provider: string | null;
+          operation_profile: string;
           phone: string;
           professionals_can_view_commission: boolean;
           payment_fee_bps: Json;
@@ -451,9 +453,11 @@ export type Database = {
           description?: string | null;
           id?: string;
           instagram_url?: string | null;
+          feature_flags?: Json;
           logo_url?: string | null;
           name: string;
           notification_provider?: string | null;
+          operation_profile?: string;
           phone: string;
           professionals_can_view_commission?: boolean;
           payment_fee_bps?: Json;
@@ -478,9 +482,11 @@ export type Database = {
           description?: string | null;
           id?: string;
           instagram_url?: string | null;
+          feature_flags?: Json;
           logo_url?: string | null;
           name?: string;
           notification_provider?: string | null;
+          operation_profile?: string;
           phone?: string;
           professionals_can_view_commission?: boolean;
           payment_fee_bps?: Json;

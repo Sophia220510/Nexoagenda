@@ -4,6 +4,7 @@ import {
   addBusinessUserAsAdmin,
   type AddBusinessUserState,
 } from "@/app/admin/actions";
+import { AdminImageUpload } from "@/components/admin-image-upload";
 export function AddBusinessUserForm({ businessId }: { businessId: string }) {
   const [state, action, pending] = useActionState(
     addBusinessUserAsAdmin,
@@ -45,12 +46,17 @@ export function AddBusinessUserForm({ businessId }: { businessId: string }) {
         <label>
           Role
           <select name="role">
-            <option value="PROFESSIONAL">PROFESSIONAL</option>
-            <option value="RECEPTIONIST">RECEPTIONIST</option>
-            <option value="OWNER">OWNER</option>
+            <option value="PROFESSIONAL">Funcionário / profissional</option>
+            <option value="RECEPTIONIST">Recepcionista</option>
+            <option value="OWNER">Dono</option>
           </select>
         </label>
       </div>
+      <AdminImageUpload
+        label="Foto do usuário"
+        scope="profiles"
+        name="photo_url"
+      />
       {state.error && <p className="notice notice-error">{state.error}</p>}
       <button className="button" disabled={pending}>
         {pending ? "Criando..." : "Adicionar usuário/profissional"}

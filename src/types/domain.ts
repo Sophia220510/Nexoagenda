@@ -24,6 +24,8 @@ export interface Membership {
     reminder_template?: string | null;
     professionals_can_view_commission?: boolean;
     business_mode?: "SOLO" | "TEAM";
+    operation_profile?: "SOLO" | "ESSENTIAL_TEAM" | "GROWING_OPERATION" | "STRUCTURED_OPERATION";
+    feature_flags?: Record<string, boolean>;
     slot_interval_minutes?: number;
     accepted_payment_methods?: Array<"PIX" | "CASH" | "DEBIT_CARD" | "CREDIT_CARD" | "OTHER">;
     payment_fee_bps?: Record<string, number>;

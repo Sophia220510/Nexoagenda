@@ -54,7 +54,6 @@ const receptionistLinks = [
   ["/painel/financeiro", "Financeiro", WalletCards],
   ["/painel/relatorios", "Relatórios", BarChart3],
   ["/painel/lista-de-espera", "Lista de espera", ListPlus],
-  ["/painel/lista-de-espera", "Lista de espera", ListPlus],
 ] as const;
 
 const professionalLinks = [
@@ -83,6 +82,13 @@ export function DashboardNav({
     : receptionist
       ? receptionistLinks
       : professionalLinks;
+  const features = membership.businesses?.feature_flags ?? {};
+  const visibleLinks = links.filter(([href]) => {
+    if (href === "/painel/equipe") return features.team_management !== false;
+    if (href === "/painel/lista-de-espera") return features.waitlist !== false;
+    if (href === "/painel/relatorios") return features.advanced_reports !== false;
+    return true;
+  });
   const active = (href: string) =>
     href === "/painel" ? pathname === href : pathname.startsWith(href);
   return (
@@ -109,7 +115,7 @@ export function DashboardNav({
           <p>{membership.businesses?.name}</p>
         </div>
         <nav className="sidebar-links" aria-label="Navegação principal">
-          {links.map(([href, label, Icon]) => (
+          {visibleLinks.map(([href, label, Icon]) => (
             <Link
               key={href}
               href={href}

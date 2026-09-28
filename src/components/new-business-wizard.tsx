@@ -6,6 +6,14 @@ import {
   createBusinessAsAdmin,
   type CreateBusinessState,
 } from "@/app/admin/actions";
+import { AdminImageUpload } from "@/components/admin-image-upload";
+import {
+  featureDefinitions,
+  getOperationProfile,
+  operationProfiles,
+  type FeatureFlags,
+  type OperationProfile,
+} from "@/lib/operation-profiles";
 
 type UserInput = {
   name: string;
@@ -47,6 +55,9 @@ export function NewBusinessWizard() {
     phone: "",
     timezone: "America/Sao_Paulo",
     logo_url: "",
+    operation_profile: "ESSENTIAL_TEAM" as OperationProfile,
+    business_mode: "TEAM" as "SOLO" | "TEAM",
+    feature_flags: getOperationProfile("ESSENTIAL_TEAM").features,
   });
   const [users, setUsers] = useState<UserInput[]>([
     {
@@ -185,16 +196,65 @@ export function NewBusinessWizard() {
                   }
                 />
               </label>
-              <label>
-                Logo URL
-                <input
-                  type="url"
-                  value={business.logo_url}
-                  onChange={(e) =>
-                    setBusiness({ ...business, logo_url: e.target.value })
-                  }
-                />
-              </label>
+            </div>
+            <AdminImageUpload
+              label="Logo da empresa"
+              scope="logos"
+              value={business.logo_url}
+              onChange={(logo_url) => setBusiness({ ...business, logo_url })}
+            />
+            <div className="operation-profile-section">
+              <div>
+                <p className="eyebrow">Estrutura da operação</p>
+                <h3>Escolha um ponto de partida</h3>
+                <p className="muted">
+                  Personalize os recursos abaixo e altere tudo quando precisar.
+                </p>
+              </div>
+              <div className="operation-profile-grid">
+                {operationProfiles.map((profile) => (
+                  <button
+                    type="button"
+                    key={profile.id}
+                    className={`operation-profile-card ${business.operation_profile === profile.id ? "active" : ""}`}
+                    onClick={() =>
+                      setBusiness({
+                        ...business,
+                        operation_profile: profile.id,
+                        business_mode: profile.businessMode,
+                        feature_flags: { ...profile.features },
+                      })
+                    }
+                  >
+                    <strong>{profile.label}</strong>
+                    <span>{profile.bestFor}</span>
+                    <p>{profile.description}</p>
+                  </button>
+                ))}
+              </div>
+              <div className="feature-choice-grid">
+                {featureDefinitions.map((feature) => (
+                  <label className="feature-choice" key={feature.key}>
+                    <input
+                      type="checkbox"
+                      checked={business.feature_flags[feature.key]}
+                      onChange={(event) =>
+                        setBusiness({
+                          ...business,
+                          feature_flags: {
+                            ...business.feature_flags,
+                            [feature.key]: event.target.checked,
+                          } as FeatureFlags,
+                        })
+                      }
+                    />
+                    <span>
+                      <strong>{feature.label}</strong>
+                      <small>{feature.description}</small>
+                    </span>
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -248,20 +308,10 @@ export function NewBusinessWizard() {
                       })
                     }
                   >
-                    <option value="OWNER">OWNER</option>
-                    <option value="PROFESSIONAL">PROFESSIONAL</option>
-                    <option value="RECEPTIONIST">RECEPTIONIST</option>
+                    <option value="OWNER">Dono</option>
+                    <option value="PROFESSIONAL">Funcionário / profissional</option>
+                    <option value="RECEPTIONIST">Recepcionista</option>
                   </select>
-                </label>
-                <label>
-                  Foto URL
-                  <input
-                    type="url"
-                    value={user.photo_url}
-                    onChange={(e) =>
-                      updateUser(index, { photo_url: e.target.value })
-                    }
-                  />
                 </label>
                 <label className="check">
                   <input
@@ -274,6 +324,12 @@ export function NewBusinessWizard() {
                   Também atende clientes
                 </label>
               </div>
+              <AdminImageUpload
+                label={`Foto de ${user.name || "usuário"}`}
+                scope="profiles"
+                value={user.photo_url}
+                onChange={(photo_url) => updateUser(index, { photo_url })}
+              />
               {index > 0 && (
                 <button
                   type="button"
@@ -305,7 +361,7 @@ export function NewBusinessWizard() {
               ])
             }
           >
-            + Adicionar profissional
+            + Adicionar pessoa
           </button>
         </div>
       )}
@@ -391,6 +447,11 @@ export function NewBusinessWizard() {
             </span>
             <span>
               {users.length} usuários · {services.length} serviços
+            </span>
+            <span>
+              {getOperationProfile(business.operation_profile).label} ·{" "}
+              {featureDefinitions.filter(({ key }) => business.feature_flags[key]).length}{" "}
+              recursos ativos
             </span>
             {users.map((user) => (
               <code key={user.username}>

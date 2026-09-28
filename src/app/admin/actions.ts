@@ -9,11 +9,22 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { internalAuthIdentifier, normalizeUsername } from "@/lib/username";
 import { getCurrentUser } from "@/lib/auth";
+import {
+  featureDefinitions,
+  operationProfileIds,
+  type FeatureFlags,
+} from "@/lib/operation-profiles";
 
 function fail(path: string, message: string): never {
   redirect(`${path}?error=${encodeURIComponent(message)}`);
 }
 const uuid = z.string().uuid();
+const operationProfileSchema = z.enum(operationProfileIds);
+const featureFlagsSchema = z.object(
+  Object.fromEntries(
+    featureDefinitions.map(({ key }) => [key, z.boolean()]),
+  ) as Record<keyof FeatureFlags, z.ZodBoolean>,
+);
 
 export async function updateBusinessAsAdmin(formData: FormData) {
   await requirePlatformAdmin();
@@ -56,6 +67,30 @@ export async function updateBusinessAsAdmin(formData: FormData) {
     p_active: formData.get("active") === "on",
   });
   if (error) fail(path, "Não foi possível atualizar a empresa.");
+  const operationProfile = operationProfileSchema.safeParse(
+    formData.get("operation_profile"),
+  );
+  if (operationProfile.success) {
+    const featureFlags = Object.fromEntries(
+      featureDefinitions.map(({ key }) => [
+        key,
+        formData.get(`feature_${key}`) === "on",
+      ]),
+    ) as FeatureFlags;
+    const admin = createAdminClient();
+    const { error: capabilityError } = await admin
+      .from("businesses")
+      .update({
+        operation_profile: operationProfile.data,
+        business_mode: operationProfile.data === "SOLO" ? "SOLO" : "TEAM",
+        feature_flags: featureFlags,
+        cash_closing_enabled: featureFlags.cash_closing,
+        reminders_enabled: featureFlags.whatsapp_reminders,
+      })
+      .eq("id", id.data);
+    if (capabilityError)
+      fail(path, "A empresa foi salva, mas os recursos não foram atualizados.");
+  }
   revalidatePath(path);
   revalidatePath("/admin");
   redirect(`${path}?success=Empresa atualizada e ação auditada.`);
@@ -173,6 +208,9 @@ const newBusinessSchema = z.object({
     phone: z.string().min(8),
     timezone: z.string().min(3).max(64),
     logo_url: z.union([z.literal(""), z.string().url()]),
+    operation_profile: operationProfileSchema,
+    business_mode: z.enum(["SOLO", "TEAM"]),
+    feature_flags: featureFlagsSchema,
   }),
   users: z
     .array(
@@ -271,7 +309,13 @@ export async function createBusinessAsAdmin(
       });
     }
     const bundle = {
-      business: { ...parsed.data.business, phone, id: crypto.randomUUID() },
+      business: {
+        ...parsed.data.business,
+        business_mode:
+          parsed.data.business.operation_profile === "SOLO" ? "SOLO" : "TEAM",
+        phone,
+        id: crypto.randomUUID(),
+      },
       users,
       services: parsed.data.services.map((service) => ({
         ...service,
@@ -284,6 +328,19 @@ export async function createBusinessAsAdmin(
       { p_bundle: bundle },
     );
     if (error) throw error;
+    const { error: capabilityError } = await admin
+      .from("businesses")
+      .update({
+        operation_profile: parsed.data.business.operation_profile,
+        business_mode:
+          parsed.data.business.operation_profile === "SOLO" ? "SOLO" : "TEAM",
+        feature_flags: parsed.data.business.feature_flags,
+        cash_closing_enabled: parsed.data.business.feature_flags.cash_closing,
+        reminders_enabled:
+          parsed.data.business.feature_flags.whatsapp_reminders,
+      })
+      .eq("id", businessId);
+    if (capabilityError) throw capabilityError;
     const { error: accessReadyError } = await admin
       .from("login_identities")
       .update({ must_change_password: false })
@@ -368,13 +425,22 @@ export async function addBusinessUserAsAdmin(
   const role = z
     .enum(["OWNER", "PROFESSIONAL", "RECEPTIONIST"])
     .safeParse(formData.get("role"));
+  const photo = z
+    .union([z.literal(""), z.string().url()])
+    .safeParse(String(formData.get("photo_url") ?? ""));
   let username: string;
   try {
     username = normalizeUsername(String(formData.get("username")));
   } catch {
     return { error: "Username inválido ou reservado." };
   }
-  if (!businessId.success || !name.success || !pass.success || !role.success)
+  if (
+    !businessId.success ||
+    !name.success ||
+    !pass.success ||
+    !role.success ||
+    !photo.success
+  )
     return { error: "Revise os dados do usuário." };
   const admin = createAdminClient();
   const { data: exists } = await admin
@@ -395,7 +461,11 @@ export async function addBusinessUserAsAdmin(
   try {
     await admin
       .from("profiles")
-      .upsert({ id: data.user.id, full_name: name.data });
+      .upsert({
+        id: data.user.id,
+        full_name: name.data,
+        avatar_url: photo.data || null,
+      });
     const { error: identityError } = await admin
       .from("login_identities")
       .insert({
@@ -419,6 +489,7 @@ export async function addBusinessUserAsAdmin(
           business_id: businessId.data,
           user_id: data.user.id,
           name: name.data,
+          photo_url: photo.data || null,
         });
       if (professionalError) throw professionalError;
     }
