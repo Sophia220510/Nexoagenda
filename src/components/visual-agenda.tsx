@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { createBlockedTime } from "@/app/actions/business";
 import { SubmitButton } from "@/components/submit-button";
+import { intervalOverlapsSlot } from "@/lib/agenda-grid";
 
 type Professional = { id: string; name: string };
 type Appointment = {
@@ -198,6 +199,28 @@ export function VisualAgenda({
     if (canCreateAppointment) setSlotActionsOpen(true);
     else setBlockOpen(true);
   };
+  const appointmentAt = (professionalId: string, minutes: number) =>
+    activeAppointments.find(
+      (appointment) =>
+        appointment.professional_id === professionalId &&
+        intervalOverlapsSlot(
+          localMinutes(appointment.starts_at, timezone),
+          localMinutes(appointment.ends_at, timezone),
+          minutes,
+          slotMinutes,
+        ),
+    );
+  const blockedAt = (professionalId: string, minutes: number) =>
+    blockedTimes.find(
+      (blocked) =>
+        blocked.professional_id === professionalId &&
+        intervalOverlapsSlot(
+          localMinutes(blocked.starts_at, timezone),
+          localMinutes(blocked.ends_at, timezone),
+          minutes,
+          slotMinutes,
+        ),
+    );
 
   return (
     <>
@@ -326,19 +349,22 @@ export function VisualAgenda({
               slots.map((minutes, slotIndex) => {
                 const working = isWorking(professional.id, minutes);
                 const recurring = isRecurringBlock(professional.id, minutes);
+                const appointment = appointmentAt(professional.id, minutes);
+                const blocked = blockedAt(professional.id, minutes);
                 const past =
                   date < today || (date === today && minutes <= nowMinutes);
+                const unavailable = !working || recurring || past || Boolean(appointment) || Boolean(blocked);
                 return (
                   <button
                     type="button"
-                    className={`calendar-slot ${!working ? "off-hours" : ""} ${recurring ? "recurring" : ""} ${past ? "past-slot" : ""}`}
+                    className={`calendar-slot ${!working ? "off-hours" : ""} ${recurring ? "recurring" : ""} ${past ? "past-slot" : ""} ${appointment ? "occupied-slot" : ""} ${blocked ? "blocked-slot" : ""}`}
                     style={{
                       gridColumn: professionalIndex + 2,
                       gridRow: slotIndex + 2,
                     }}
                     key={`${professional.id}-${minutes}`}
-                    disabled={!working || recurring || past}
-                    aria-label={`${minutesToTime(minutes)}, ${professional.name}${!working || recurring || past ? ", indisponível" : ", horário livre"}`}
+                    disabled={unavailable}
+                    aria-label={`${minutesToTime(minutes)}, ${professional.name}${unavailable ? ", indisponível" : ", horário livre"}`}
                     onClick={() => openFreeSlot(professional, minutes)}
                   />
                 );
@@ -449,25 +475,64 @@ export function VisualAgenda({
         </div>
         <div className="mobile-agenda-timeline">
           {slots.map((minutes) => {
-            const slotAppointments = appointments.filter(
-              (item) => localMinutes(item.starts_at, timezone) === minutes,
+            const slotAppointments = activeAppointments.filter(
+              (item) =>
+                localMinutes(item.starts_at, timezone) >= minutes &&
+                localMinutes(item.starts_at, timezone) < minutes + slotMinutes,
             );
             const slotBlocks = blockedTimes.filter(
-              (item) => localMinutes(item.starts_at, timezone) === minutes,
+              (item) =>
+                localMinutes(item.starts_at, timezone) >= minutes &&
+                localMinutes(item.starts_at, timezone) < minutes + slotMinutes,
+            );
+            const coveringAppointments = activeAppointments.filter((item) =>
+              intervalOverlapsSlot(
+                localMinutes(item.starts_at, timezone),
+                localMinutes(item.ends_at, timezone),
+                minutes,
+                slotMinutes,
+              ),
+            );
+            const coveringBlocks = blockedTimes.filter((item) =>
+              intervalOverlapsSlot(
+                localMinutes(item.starts_at, timezone),
+                localMinutes(item.ends_at, timezone),
+                minutes,
+                slotMinutes,
+              ),
             );
             const isCurrent =
               showNow &&
               nowMinutes >= minutes &&
               nowMinutes < minutes + slotMinutes;
             const singleProfessional = professionals[0];
+            const coveringAppointment = singleProfessional
+              ? coveringAppointments.find(
+                  (item) => item.professional_id === singleProfessional.id,
+                )
+              : undefined;
+            const coveringBlock = singleProfessional
+              ? coveringBlocks.find(
+                  (item) => item.professional_id === singleProfessional.id,
+                )
+              : undefined;
+            const continuingAppointments = coveringAppointments.filter(
+              (covering) =>
+                !slotAppointments.some((item) => item.id === covering.id),
+            );
+            const continuingBlocks = coveringBlocks.filter(
+              (covering) => !slotBlocks.some((item) => item.id === covering.id),
+            );
             const mobileAvailable =
               Boolean(singleProfessional) &&
               isWorking(singleProfessional.id, minutes) &&
               !isRecurringBlock(singleProfessional.id, minutes) &&
+              !coveringAppointment &&
+              !coveringBlock &&
               !(date < today || (date === today && minutes <= nowMinutes));
             return (
               <div
-                className={`mobile-time-row ${isCurrent ? "is-current" : ""}`}
+                className={`mobile-time-row ${isCurrent ? "is-current" : ""} ${coveringAppointments.length ? "is-occupied" : ""} ${coveringBlocks.length ? "is-blocked" : ""}`}
                 key={minutes}
               >
                 <time>
@@ -497,8 +562,36 @@ export function VisualAgenda({
                       <span>{item.reason || "Indisponível"}</span>
                     </article>
                   ))}
+                  {continuingAppointments.map((continuingAppointment) => (
+                    <Link
+                      href={`/painel/agendamentos/${continuingAppointment.id}`}
+                      className={`mobile-event is-continuation status-${continuingAppointment.status.toLowerCase()}`}
+                      key={`continuing-${continuingAppointment.id}`}
+                    >
+                      <strong>Horário ocupado</strong>
+                      <span>
+                        {continuingAppointment.customers?.name}
+                        {professionals.length > 1 && continuingAppointment.professionals?.name
+                          ? ` · ${continuingAppointment.professionals.name}`
+                          : ""}{" "}
+                        · até{" "}
+                        {shortTime(continuingAppointment.ends_at, timezone)}
+                      </span>
+                    </Link>
+                  ))}
+                  {continuingBlocks.map((continuingBlock) => (
+                    <article
+                      className="mobile-event is-blocked is-continuation"
+                      key={`continuing-${continuingBlock.id}`}
+                    >
+                      <strong>Bloqueado até {shortTime(continuingBlock.ends_at, timezone)}</strong>
+                      <span>{continuingBlock.reason || "Indisponível"}</span>
+                    </article>
+                  ))}
                   {!slotAppointments.length &&
                     !slotBlocks.length &&
+                    !continuingAppointments.length &&
+                    !continuingBlocks.length &&
                     (professionals.length === 1 &&
                     singleProfessional &&
                     mobileAvailable ? (

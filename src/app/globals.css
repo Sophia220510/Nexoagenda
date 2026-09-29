@@ -5102,6 +5102,21 @@ body {
     background: #edf6e5;
     box-shadow: 0 5px 14px #1734270d;
   }
+  .mobile-time-row.is-occupied {
+    background: #f4f9ee;
+  }
+  .mobile-event.is-continuation {
+    min-height: 42px;
+    border-style: solid;
+    border-radius: 9px;
+    background: #edf6e5;
+  }
+  .mobile-event.is-continuation strong {
+    font-size: .72rem;
+  }
+  .mobile-event.is-continuation span {
+    margin-top: 2px;
+  }
   .mobile-event-heading {
     display: flex;
     align-items: center;
