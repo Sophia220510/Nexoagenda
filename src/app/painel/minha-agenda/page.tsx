@@ -81,7 +81,7 @@ export default async function MyAgendaPage({
     : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }];
   return (
     <>
-      <header className="page-header">
+      <header className="page-header premium">
         <div>
           <p className="eyebrow">Área profissional</p>
           <h1>Minha agenda</h1>
@@ -89,6 +89,9 @@ export default async function MyAgendaPage({
             Veja os horários do dia e clique em um espaço livre para bloquear.
           </p>
         </div>
+        <Link className="button-ghost" href="/painel/meus-horarios">
+          Configurar meus horários
+        </Link>
       </header>
       <Notice error={query.error} />
       {!!pendingAppointments.data?.length && (

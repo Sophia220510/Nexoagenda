@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import {
   Bell,
   Building2,
@@ -48,6 +48,12 @@ export function AdminNav({
   const [open, setOpen] = useState(false);
   const active = (href: string) =>
     href === "/admin" ? pathname === href : pathname.startsWith(href);
+  const sectionFor = (href: string) => {
+    if (href === "/admin") return "Plataforma";
+    if (href.includes("empresas") || href.includes("usuarios") || href.includes("profissionais") || href.includes("clientes")) return "Cadastros";
+    if (href.includes("agendamentos") || href.includes("notificacoes")) return "Operação";
+    return "Sistema";
+  };
   return (
     <>
       <aside className={`sidebar admin-sidebar ${open ? "mobile-open" : ""}`}>
@@ -64,20 +70,20 @@ export function AdminNav({
           <p>Gestão da plataforma</p>
         </div>
         <nav className="sidebar-links" aria-label="Navegação administrativa">
-          {links.map(([href, label, Icon]) => (
-            <Link
-              key={href}
-              href={href}
-              className={active(href) ? "active" : ""}
-              onClick={() => setOpen(false)}
-            >
-              <Icon size={18} />
-              <span>{label}</span>
-              {href.includes("notificacoes") && unreadCount > 0 && (
-                <b>{unreadCount > 99 ? "99+" : unreadCount}</b>
-              )}
-            </Link>
-          ))}
+          {links.map(([href, label, Icon], index) => {
+            const section = sectionFor(href);
+            const previousSection = index > 0 ? sectionFor(links[index - 1][0]) : "";
+            return (
+              <Fragment key={href}>
+                {section !== previousSection && <small className="sidebar-section-label">{section}</small>}
+                <Link href={href} className={active(href) ? "active" : ""} onClick={() => setOpen(false)}>
+                  <Icon size={18} />
+                  <span>{label}</span>
+                  {href.includes("notificacoes") && unreadCount > 0 && <b>{unreadCount > 99 ? "99+" : unreadCount}</b>}
+                </Link>
+              </Fragment>
+            );
+          })}
         </nav>
         <div className="sidebar-user admin-user">
           <span>

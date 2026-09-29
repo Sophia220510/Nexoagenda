@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { NexoBrand } from "@/components/nexo-brand";
 import { formatCurrency } from "@/lib/format";
 import { getPublicBusiness } from "@/lib/public-business";
+import { CalendarCheck2, Clock3, ShieldCheck } from "lucide-react";
 
 export async function generateMetadata({
   params,
@@ -58,6 +59,11 @@ export default async function PublicBusinessPage({
           {business.description ||
             "Escolha o serviço, profissional e o melhor horário para você."}
         </p>
+        <div className="business-trust-row">
+          <span><CalendarCheck2 /> Confirmação imediata</span>
+          <span><Clock3 /> Horários em tempo real</span>
+          <span><ShieldCheck /> Sem criar conta</span>
+        </div>
         <Link className="button" href={`/${business.slug}/agendar`}>
           Agendar agora
         </Link>
@@ -92,9 +98,18 @@ export default async function PublicBusinessPage({
         <div className="public-grid">
           {business.professionals.map((professional) => (
             <article className="public-card" key={professional.id}>
-              <span className="public-avatar">
-                {professional.name.slice(0, 1)}
-              </span>
+              {professional.photo_url ? (
+                <Image
+                  src={professional.photo_url}
+                  width={64}
+                  height={64}
+                  alt={`Foto de ${professional.name}`}
+                  className="public-avatar public-avatar-photo"
+                  unoptimized
+                />
+              ) : (
+                <span className="public-avatar">{professional.name.slice(0, 1)}</span>
+              )}
               <h3>{professional.name}</h3>
               <p>{professional.bio || "Profissional da equipe."}</p>
             </article>

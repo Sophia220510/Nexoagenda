@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Notice } from "@/components/notice";
 import { ProfessionalSetupWizard } from "@/components/professional-setup-wizard";
 import { requireConfiguredProfessional } from "@/lib/auth";
@@ -34,7 +35,7 @@ export default async function MyHoursPage({
   ]);
   return (
     <>
-      <header className="page-header">
+      <header className="page-header premium">
         <div>
           <p className="eyebrow">Disponibilidade</p>
           <h1>Meus horários</h1>
@@ -42,6 +43,9 @@ export default async function MyHoursPage({
             Ajuste serviços, duração, jornada e intervalos fixos.
           </p>
         </div>
+        <Link className="button-ghost" href="/painel/minha-agenda">
+          Voltar para minha agenda
+        </Link>
       </header>
       <Notice {...await searchParams} />
       <ProfessionalSetupWizard

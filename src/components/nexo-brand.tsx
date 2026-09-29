@@ -28,7 +28,7 @@ export function NexoBrand({
       {!compact && (
         <span className="nexo-wordmark">
           <strong>NEXO</strong>
-          <small>Book</small>
+          <small>BOOK</small>
         </span>
       )}
     </Link>

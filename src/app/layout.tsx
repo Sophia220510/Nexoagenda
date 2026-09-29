@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   description: "Agenda e gestão inteligente para negócios e profissionais.",
   applicationName: "NEXO Book",
   manifest: "/manifest.webmanifest",
-  icons: { icon: "/brand/nexo-mark.png", apple: "/brand/nexo-mark.png" },
+  icons: { icon: "/icon.svg", apple: "/apple-icon.png" },
   openGraph: {
     type: "website",
     locale: "pt_BR",

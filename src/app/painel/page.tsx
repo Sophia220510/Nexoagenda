@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { addDays, startOfMonth, startOfWeek } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import {
@@ -15,10 +14,19 @@ import {
 import { requireMembership, getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency } from "@/lib/format";
+import { ProfessionalDashboard } from "@/components/professional-dashboard";
 
 export default async function DashboardPage() {
   const membership = await requireMembership();
-  if (membership.role === "PROFESSIONAL") redirect("/painel/minha-agenda");
+  const user = await getCurrentUser();
+  if (membership.role === "PROFESSIONAL") {
+    return (
+      <ProfessionalDashboard
+        membership={membership}
+        firstName={user?.user_metadata?.full_name?.split(" ")[0] ?? ""}
+      />
+    );
+  }
   const timezone = membership.businesses?.timezone ?? "America/Sao_Paulo";
   const now = new Date();
   const todayLabel = formatInTimeZone(now, timezone, "yyyy-MM-dd");
@@ -33,7 +41,6 @@ export default async function DashboardPage() {
     1,
   );
   const supabase = await createClient();
-  const user = await getCurrentUser();
   const [
     today,
     pendingAppointments,

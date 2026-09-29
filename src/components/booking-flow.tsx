@@ -76,6 +76,7 @@ export function BookingFlow({ business }: { business: PublicBusiness }) {
       }, {}),
     [slots, business.timezone],
   );
+  const currentStep = slot ? 4 : professionalChoice ? 3 : serviceId ? 2 : 1;
 
   async function loadSlots(nextDate: string) {
     if (!serviceId || !professionalChoice || !nextDate) return;
@@ -237,6 +238,15 @@ export function BookingFlow({ business }: { business: PublicBusiness }) {
 
   return (
     <form onSubmit={submit} className="booking-card">
+      <div className="booking-progress" aria-label={`Etapa ${currentStep} de 4`}>
+        <div>
+          <span>Etapa {currentStep} de 4</span>
+          <strong>{["Serviço", "Profissional", "Dia e horário", "Seus dados"][currentStep - 1]}</strong>
+        </div>
+        <div className="booking-progress-track">
+          {[1, 2, 3, 4].map((number) => <i className={number <= currentStep ? "active" : ""} key={number} />)}
+        </div>
+      </div>
       <div className="step">
         <span>1</span>
         <div>
@@ -306,8 +316,18 @@ export function BookingFlow({ business }: { business: PublicBusiness }) {
                   }}
                   key={professional.id}
                 >
-                  <strong>{professional.name}</strong>
-                  <small>{professional.bio || "Profissional disponível"}</small>
+                  <span className="booking-professional-option">
+                    {professional.photo_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={professional.photo_url} alt="" />
+                    ) : (
+                      <b>{professional.name.slice(0, 1)}</b>
+                    )}
+                    <span>
+                      <strong>{professional.name}</strong>
+                      <small>{professional.bio || "Profissional disponível"}</small>
+                    </span>
+                  </span>
                 </button>
               ))}
             </div>
@@ -410,8 +430,8 @@ export function BookingFlow({ business }: { business: PublicBusiness }) {
             <h2>Seus dados</h2>
             <div className="field-grid">
               <label>
-                Nome
-                <input name="name" required minLength={2} />
+                Seu nome
+                <input name="name" autoComplete="name" placeholder="Como devemos chamar você?" required minLength={2} />
               </label>
               <label>
                 WhatsApp

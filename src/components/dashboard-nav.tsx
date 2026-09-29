@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import {
   BarChart3,
   Bell,
@@ -31,10 +31,10 @@ const ownerLinks = [
   ["/painel/agenda", "Agenda", CalendarDays],
   ["/painel/agendamentos", "Agendamentos", Clock3],
   ["/painel/clientes", "Clientes", ContactRound],
-  ["/painel/financeiro", "Financeiro", WalletCards],
-  ["/painel/relatorios", "Relatórios", BarChart3],
   ["/painel/equipe", "Equipe", UsersRound],
   ["/painel/servicos", "Serviços", Scissors],
+  ["/painel/financeiro", "Financeiro", WalletCards],
+  ["/painel/relatorios", "Relatórios", BarChart3],
   ["/painel/configuracoes", "Configurações", Settings],
 ] as const;
 
@@ -59,6 +59,7 @@ const receptionistLinks = [
 ] as const;
 
 const professionalLinks = [
+  ["/painel", "Início", Home],
   ["/painel/minha-agenda", "Minha agenda", CalendarDays],
   ["/painel/meus-horarios", "Meus horários", Clock3],
 ] as const;
@@ -97,6 +98,14 @@ export function DashboardNav({
   });
   const active = (href: string) =>
     href === "/painel" ? pathname === href : pathname.startsWith(href);
+  const sectionFor = (href: string) => {
+    if (href === "/painel") return "Visão geral";
+    if (href.includes("agenda") || href.includes("agendamentos")) return "Rotina";
+    if (href.includes("clientes") || href.includes("lista-de-espera")) return "Relacionamento";
+    if (href.includes("equipe") || href.includes("servicos") || href.includes("meus-horarios")) return "Operação";
+    if (href.includes("financeiro") || href.includes("relatorios") || href.includes("configuracoes")) return "Gestão";
+    return "";
+  };
   return (
     <>
       <aside className={`sidebar ${open ? "mobile-open" : ""}`}>
@@ -121,17 +130,19 @@ export function DashboardNav({
           <p>{membership.businesses?.name}</p>
         </div>
         <nav className="sidebar-links" aria-label="Navegação principal">
-          {visibleLinks.map(([href, label, Icon]) => (
-            <Link
-              key={href}
-              href={href}
-              className={active(href) ? "active" : ""}
-              onClick={() => setOpen(false)}
-            >
-              <Icon size={18} />
-              <span>{label}</span>
-            </Link>
-          ))}
+          {visibleLinks.map(([href, label, Icon], index) => {
+            const section = sectionFor(href);
+            const previousSection = index > 0 ? sectionFor(visibleLinks[index - 1][0]) : "";
+            return (
+              <Fragment key={href}>
+                {section !== previousSection && <small className="sidebar-section-label">{section}</small>}
+                <Link href={href} className={active(href) ? "active" : ""} onClick={() => setOpen(false)}>
+                  <Icon size={18} />
+                  <span>{label}</span>
+                </Link>
+              </Fragment>
+            );
+          })}
           {operator && (
             <Link href={`/${membership.businesses?.slug}`} target="_blank">
               <ExternalLink size={18} />
