@@ -6,6 +6,7 @@ import {
 } from "@/app/actions/business";
 import { Notice } from "@/components/notice";
 import { SubmitButton } from "@/components/submit-button";
+import { AdminImageUpload } from "@/components/admin-image-upload";
 import { requireOwner } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -60,10 +61,12 @@ export default async function ProfessionalsPage({
               Nome
               <input name="name" required />
             </label>
-            <label>
-              URL da foto (opcional)
-              <input name="photo_url" type="url" />
-            </label>
+            <AdminImageUpload
+              label="Foto do profissional"
+              scope="profiles"
+              name="photo_url"
+              endpoint="/api/upload"
+            />
             <label>
               Bio
               <textarea name="bio" rows={3} />
@@ -72,7 +75,7 @@ export default async function ProfessionalsPage({
               <label>Telefone<input name="phone" inputMode="tel" placeholder="(11) 99999-9999" /></label>
               <label>WhatsApp<input name="whatsapp_phone" inputMode="tel" placeholder="(11) 99999-9999" /></label>
             </div>
-            <label className="check"><input type="checkbox" name="receive_booking_whatsapp" /> Receber confirmação de novos agendamentos</label>
+            <label className="check"><input type="checkbox" name="receive_booking_whatsapp" /> Direcionar o aviso manual do cliente para este WhatsApp</label>
             <fieldset>
               <legend>Serviços executados</legend>
               {services.map((service) => (
@@ -163,14 +166,13 @@ export default async function ProfessionalsPage({
                             required
                           />
                         </label>
-                        <label>
-                          URL da foto
-                          <input
-                            name="photo_url"
-                            type="url"
-                            defaultValue={professional.photo_url ?? ""}
-                          />
-                        </label>
+                        <AdminImageUpload
+                          label="Foto do profissional"
+                          scope="profiles"
+                          name="photo_url"
+                          defaultValue={professional.photo_url ?? ""}
+                          endpoint="/api/upload"
+                        />
                         <label>
                           Bio
                           <textarea
@@ -183,7 +185,7 @@ export default async function ProfessionalsPage({
                           <label>Telefone<input name="phone" inputMode="tel" defaultValue={professional.phone ?? ""} /></label>
                           <label>WhatsApp<input name="whatsapp_phone" inputMode="tel" defaultValue={professional.whatsapp_phone ?? ""} /></label>
                         </div>
-                        <label className="check"><input type="checkbox" name="receive_booking_whatsapp" defaultChecked={professional.receive_booking_whatsapp} /> Receber novos agendamentos no WhatsApp</label>
+                        <label className="check"><input type="checkbox" name="receive_booking_whatsapp" defaultChecked={professional.receive_booking_whatsapp} /> Direcionar o aviso manual do cliente para este WhatsApp</label>
                         <fieldset>
                           <legend>Serviços</legend>
                           {services.map((service) => (

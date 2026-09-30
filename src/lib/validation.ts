@@ -47,6 +47,12 @@ export const onboardingSchema = z.object({
 
 export const serviceSchema = z.object({
   name: trimmedName,
+  category: z
+    .string()
+    .trim()
+    .max(80)
+    .nullish()
+    .transform((value) => value || null),
   description: z
     .string()
     .trim()

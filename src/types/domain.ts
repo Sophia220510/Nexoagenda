@@ -23,6 +23,8 @@ export interface Membership {
     operation_profile?: "SOLO" | "ESSENTIAL_TEAM" | "GROWING_OPERATION" | "STRUCTURED_OPERATION";
     feature_flags?: Record<string, boolean>;
     slot_interval_minutes?: number;
+    min_booking_notice_minutes?: number;
+    max_booking_days_ahead?: number;
     accepted_payment_methods?: Array<"PIX" | "CASH" | "DEBIT_CARD" | "CREDIT_CARD" | "OTHER">;
     payment_fee_bps?: Record<string, number>;
   } | null;
@@ -31,6 +33,7 @@ export interface Membership {
 export interface PublicService {
   id: string;
   name: string;
+  category?: string | null;
   description: string | null;
   price_cents: number;
   default_duration_minutes: number;
@@ -42,6 +45,8 @@ export interface PublicProfessional {
   photo_url: string | null;
   bio: string | null;
   service_ids: string[];
+  service_durations?: Record<string, number>;
+  service_prices?: Record<string, number>;
   whatsapp_phone?: string | null;
   receive_booking_whatsapp?: boolean;
 }
@@ -57,6 +62,8 @@ export interface PublicBusiness {
   instagram_url: string | null;
   timezone: string;
   slot_interval_minutes?: number;
+  min_booking_notice_minutes?: number;
+  max_booking_days_ahead?: number;
   professionals: PublicProfessional[];
   services: PublicService[];
 }

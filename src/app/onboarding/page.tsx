@@ -42,7 +42,7 @@ export default async function OnboardingPage({
               pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
               placeholder="studio-do-joao"
             />
-            <small>nexoagenda-gray.vercel.app/studio-do-joao</small>
+            <small>seusite.com/studio-do-joao</small>
           </label>
           <label>
             WhatsApp

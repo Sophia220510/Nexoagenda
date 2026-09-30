@@ -1,4 +1,4 @@
-# NexoAgenda
+# NEXO Book
 
 SaaS multiempresa de agendamento para qualquer negócio baseado em serviço, duração, profissional e horário. Cada estabelecimento compartilha a aplicação e o PostgreSQL, mas seus dados privados são isolados por chaves estrangeiras compostas, Row Level Security (RLS) e autorização no servidor.
 
@@ -54,11 +54,11 @@ Confira o project ref antes de confirmar o push. `supabase/seed.sql` contém dad
 
 ### Estado do projeto hospedado
 
-As onze migrations versionadas foram aplicadas ao projeto `omgjtfdkpfopcnmyggxh`. Auditorias transacionais de isolamento, username, criação administrativa e operações de appointment foram executadas no banco hospedado e passaram sem deixar dados de teste. O `.env.local` permanece ignorado pelo Git.
+As migrations versionadas em `supabase/migrations` são a fonte de verdade do projeto `omgjtfdkpfopcnmyggxh`. O `.env.local` permanece ignorado pelo Git. Antes de cada publicação, valide migrations pendentes, execute as auditorias do Supabase e rode a suíte descrita em “Verificação”.
 
 ## Master Admin e ambiente demo
 
-O papel master é independente de `business_members` e fica em `platform_admins`. Usuários ativos dessa tabela entram em `/admin`, onde podem criar e consultar todos os estabelecimentos, usuários, profissionais, clientes e agendas. Alterações críticas geram registros em `admin_audit_logs`. Não há impersonação nem exclusões destrutivas.
+O papel master é independente de `business_members` e fica em `platform_admins`. Usuários ativos dessa tabela entram em `/admin`, onde podem montar a estrutura da empresa, criar acessos permanentes, profissionais, catálogo e operação inicial. Alterações críticas geram registros em `admin_audit_logs`. Não há impersonação nem exclusões destrutivas.
 
 O ambiente demonstrativo é criado de forma idempotente por um script executado somente no servidor/local:
 
@@ -66,7 +66,7 @@ O ambiente demonstrativo é criado de forma idempotente por um script executado 
 npm run bootstrap:demo
 ```
 
-Antes, preencha somente `SUPABASE_SECRET_KEY` em `.env.local`. O script gera senhas fortes, atualiza/cria as contas idempotentemente e mostra as quatro credenciais uma única vez no terminal. A chave secreta nunca deve receber prefixo `NEXT_PUBLIC_`, ser enviada ao Git ou utilizada no navegador.
+Antes, preencha somente `SUPABASE_SECRET_KEY` em `.env.local`. O script atualiza/cria as contas demo de forma idempotente. A chave secreta nunca deve receber prefixo `NEXT_PUBLIC_`, ser enviada ao Git ou utilizada no navegador. Senhas são permanentes e ficam somente no Supabase Auth; o sistema nunca tenta exibir a senha armazenada.
 
 O bootstrap cria/atualiza `barbearia-nexo-demo`, Lucas (OWNER), Rafael e Pedro (PROFESSIONAL), catálogo, durações individuais, jornadas, pausa recorrente, clientes fictícios e agendamentos futuros. Reexecutá-lo converge para o mesmo estado sem duplicar registros.
 
@@ -127,14 +127,14 @@ As helpers RLS `is_business_member`, `is_business_owner` e `is_current_professio
 - Cada Server Action privada repete a autorização; o proxy não é a única defesa.
 - Usuário sem membership segue para `/onboarding`.
 - O login principal usa username; Supabase Auth continua responsável por hash, sessão e validação.
-- Contas temporárias passam por `/trocar-senha` antes do painel.
+- Contas criadas pelo administrador entram diretamente com a senha definitiva informada na criação.
 - OWNER segue para `/painel`; PROFESSIONAL sem configuração segue para o assistente inicial e, depois, para `/painel/minha-agenda`; master segue para `/admin`.
 
 No Dashboard do Supabase, configure Site URL e Redirect URLs para os domínios local e de produção, incluindo `/auth/callback` e `/redefinir-senha`.
 
 ## Disponibilidade e reserva
 
-A granularidade central é de 15 minutos. O banco gera candidatos dentro de cada faixa de `working_hours`, usa o override do profissional quando presente e exige que toda a duração caiba na faixa. Depois remove candidatos que cruzam bloqueios ou appointments não cancelados.
+A granularidade é configurável por empresa (5, 10, 15, 20, 30 ou 60 minutos). O banco gera candidatos dentro de cada faixa de `working_hours`, aplica antecedência mínima e horizonte de reservas, usa a duração individual do profissional quando presente e exige que todo o atendimento caiba no expediente. Depois remove candidatos que cruzam pausas, bloqueios ou appointments não cancelados.
 
 `POST /api/public/book` não aceita `business_id` nem `ends_at`: deriva a empresa do slug e calcula o término. A garantia final contra double booking é a exclusion constraint do PostgreSQL, portanto duas requisições concorrentes não podem confirmar intervalos sobrepostos.
 
@@ -173,8 +173,7 @@ Ela cria Empresa A/B dentro de uma transação que termina em rollback e tenta d
 
 ## Limitações atuais
 
-- Convite/vínculo de novos logins profissionais ainda não possui interface; o bootstrap demonstra o vínculo e o banco suporta `professionals.user_id` opcional.
 - Rate limiting é apenas best effort por instância.
-- Não há cobrança, assinatura, WhatsApp automático, SMS, financeiro, estoque, fidelidade ou IA.
+- Não há cobrança de assinatura, WhatsApp automático, SMS, estoque, fidelidade ou IA. O financeiro operacional interno está disponível, mas não é um gateway de pagamentos nem contabilidade fiscal.
 - Alteração de slug e exclusões destrutivas não são oferecidas.
 - Antes de produção: configurar e-mails Auth, redirects, domínio, observabilidade, rate limiting distribuído, backup/PITR e testes E2E em ambiente de staging.

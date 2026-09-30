@@ -34,8 +34,8 @@ insert into public.customers (id,business_id,name,phone) values
   ('a4000000-0000-4000-8000-000000000001','a1000000-0000-4000-8000-000000000001','Customer A','+5511888880001'),
   ('b4000000-0000-4000-8000-000000000001','b1000000-0000-4000-8000-000000000001','Customer B','+5511888880002');
 insert into public.appointments (id,business_id,professional_id,service_id,customer_id,starts_at,ends_at) values
-  ('a5000000-0000-4000-8000-000000000001','a1000000-0000-4000-8000-000000000001','a2000000-0000-4000-8000-000000000001','a3000000-0000-4000-8000-000000000001','a4000000-0000-4000-8000-000000000001','2030-01-02 12:00Z','2030-01-02 12:30Z'),
-  ('b5000000-0000-4000-8000-000000000001','b1000000-0000-4000-8000-000000000001','b2000000-0000-4000-8000-000000000001','b3000000-0000-4000-8000-000000000001','b4000000-0000-4000-8000-000000000001','2030-01-02 12:00Z','2030-01-02 12:30Z');
+  ('a5000000-0000-4000-8000-000000000001','a1000000-0000-4000-8000-000000000001','a2000000-0000-4000-8000-000000000001','a3000000-0000-4000-8000-000000000001','a4000000-0000-4000-8000-000000000001',(current_date+30+time '12:00') at time zone 'UTC',(current_date+30+time '12:30') at time zone 'UTC'),
+  ('b5000000-0000-4000-8000-000000000001','b1000000-0000-4000-8000-000000000001','b2000000-0000-4000-8000-000000000001','b3000000-0000-4000-8000-000000000001','b4000000-0000-4000-8000-000000000001',(current_date+30+time '12:00') at time zone 'UTC',(current_date+30+time '12:30') at time zone 'UTC');
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub','a0000000-0000-4000-8000-000000000001',true);
@@ -48,8 +48,12 @@ end $$;
 
 select set_config('request.jwt.claim.sub','c0000000-0000-4000-8000-000000000001',true);
 do $$ begin
-  if (select count(*) from public.businesses) <> 2 then raise exception 'Platform admin cross-tenant read failed'; end if;
-  if (select count(*) from public.customers) <> 2 then raise exception 'Platform admin customer read failed'; end if;
+  if (select count(*) from public.businesses where id in (
+    'a1000000-0000-4000-8000-000000000001','b1000000-0000-4000-8000-000000000001'
+  )) <> 2 then raise exception 'Platform admin cross-tenant read failed'; end if;
+  if (select count(*) from public.customers where id in (
+    'a4000000-0000-4000-8000-000000000001','b4000000-0000-4000-8000-000000000001'
+  )) <> 2 then raise exception 'Platform admin customer read failed'; end if;
 end $$;
 select public.admin_update_service('a3000000-0000-4000-8000-000000000001','Serviço A auditado','',3100,35,true);
 do $$ begin
@@ -80,15 +84,17 @@ begin
   v_id := public.book_internal_appointment(
     'a2000000-0000-4000-8000-000000000001',
     'a3000000-0000-4000-8000-000000000001',
-    '2030-01-07 12:00Z',
+    (current_date+(((8-extract(dow from current_date)::integer)%7)+7)+time '12:00') at time zone 'UTC',
     'a4000000-0000-4000-8000-000000000001', null, null, 'Teste operacional'
   );
   if not exists (
     select 1 from public.appointments where id = v_id and appointment_source = 'OWNER'
       and price_cents_snapshot = 3100 and duration_minutes_snapshot = 40
   ) then raise exception 'Internal booking snapshot/source failed'; end if;
-  perform public.reschedule_appointment(v_id, 'a2000000-0000-4000-8000-000000000001', '2030-01-07 12:15Z');
-  if (select starts_at from public.appointments where id = v_id) <> '2030-01-07 12:15Z'::timestamptz then
+  perform public.reschedule_appointment(v_id, 'a2000000-0000-4000-8000-000000000001',
+    (current_date+(((8-extract(dow from current_date)::integer)%7)+7)+time '12:15') at time zone 'UTC');
+  if (select starts_at from public.appointments where id = v_id) <>
+    (current_date+(((8-extract(dow from current_date)::integer)%7)+7)+time '12:15') at time zone 'UTC' then
     raise exception 'Reschedule failed';
   end if;
   perform public.set_appointment_status(v_id, 'CANCELLED', 'Teste');
@@ -104,7 +110,7 @@ do $$ begin
     perform public.book_internal_appointment(
       'a2000000-0000-4000-8000-000000000001',
       'a3000000-0000-4000-8000-000000000001',
-      '2030-01-07 14:00Z',
+      (current_date+(((8-extract(dow from current_date)::integer)%7)+7)+time '14:00') at time zone 'UTC',
       'a4000000-0000-4000-8000-000000000001', null, null, null
     );
     raise exception 'Professional created internal appointment';
@@ -127,18 +133,18 @@ reset role;
 do $$ begin
   begin
     insert into public.appointments (business_id,professional_id,service_id,customer_id,starts_at,ends_at)
-    values ('a1000000-0000-4000-8000-000000000001','a2000000-0000-4000-8000-000000000001','a3000000-0000-4000-8000-000000000001','a4000000-0000-4000-8000-000000000001','2030-01-02 12:15Z','2030-01-02 12:45Z');
+    values ('a1000000-0000-4000-8000-000000000001','a2000000-0000-4000-8000-000000000001','a3000000-0000-4000-8000-000000000001','a4000000-0000-4000-8000-000000000001',(current_date+30+time '12:15') at time zone 'UTC',(current_date+30+time '12:45') at time zone 'UTC');
     raise exception 'Overlap was accepted';
   exception when exclusion_violation then null;
   end;
   begin
     insert into public.appointments (business_id,professional_id,service_id,customer_id,starts_at,ends_at,status)
-    values ('a1000000-0000-4000-8000-000000000001','a2000000-0000-4000-8000-000000000001','a3000000-0000-4000-8000-000000000001','a4000000-0000-4000-8000-000000000001','2030-01-02 12:15Z','2030-01-02 12:45Z','CANCELLED');
+    values ('a1000000-0000-4000-8000-000000000001','a2000000-0000-4000-8000-000000000001','a3000000-0000-4000-8000-000000000001','a4000000-0000-4000-8000-000000000001',(current_date+30+time '12:15') at time zone 'UTC',(current_date+30+time '12:45') at time zone 'UTC','CANCELLED');
   exception when others then raise exception 'Cancelled appointment should not block: %', sqlerrm;
   end;
   begin
     insert into public.appointments (business_id,professional_id,service_id,customer_id,starts_at,ends_at)
-    values ('a1000000-0000-4000-8000-000000000001','b2000000-0000-4000-8000-000000000001','a3000000-0000-4000-8000-000000000001','a4000000-0000-4000-8000-000000000001','2030-01-03 12:00Z','2030-01-03 12:30Z');
+    values ('a1000000-0000-4000-8000-000000000001','b2000000-0000-4000-8000-000000000001','a3000000-0000-4000-8000-000000000001','a4000000-0000-4000-8000-000000000001',(current_date+31+time '12:00') at time zone 'UTC',(current_date+31+time '12:30') at time zone 'UTC');
     raise exception 'Cross-tenant appointment was accepted';
   exception when foreign_key_violation then null;
   end;

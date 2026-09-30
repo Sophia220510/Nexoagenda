@@ -1185,6 +1185,20 @@ h2 {
   grid-template-columns: repeat(2, 1fr);
   gap: 10px;
 }
+.booking-service-groups,
+.booking-service-group {
+  display: grid;
+  gap: 12px;
+}
+.booking-service-groups {
+  gap: 20px;
+}
+.booking-service-group h3 {
+  color: var(--muted);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
 .option {
   background: #fafbf8;
   border: 1px solid var(--line);
@@ -1199,6 +1213,13 @@ h2 {
 .option small {
   margin-top: 5px;
   color: var(--muted);
+}
+.option > span {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.4;
 }
 .option.selected,
 .slot.selected {

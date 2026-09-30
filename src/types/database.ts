@@ -426,6 +426,8 @@ export type Database = {
           instagram_url: string | null;
           feature_flags: Json;
           logo_url: string | null;
+          max_booking_days_ahead: number;
+          min_booking_notice_minutes: number;
           name: string;
           notification_provider: string | null;
           operation_profile: string;
@@ -455,6 +457,8 @@ export type Database = {
           instagram_url?: string | null;
           feature_flags?: Json;
           logo_url?: string | null;
+          max_booking_days_ahead?: number;
+          min_booking_notice_minutes?: number;
           name: string;
           notification_provider?: string | null;
           operation_profile?: string;
@@ -484,6 +488,8 @@ export type Database = {
           instagram_url?: string | null;
           feature_flags?: Json;
           logo_url?: string | null;
+          max_booking_days_ahead?: number;
+          min_booking_notice_minutes?: number;
           name?: string;
           notification_provider?: string | null;
           operation_profile?: string;
@@ -1732,6 +1738,24 @@ export type Database = {
         }[];
       };
       get_public_business: { Args: { p_slug: string }; Returns: Json };
+      list_customers_summary: {
+        Args: {
+          p_page?: number;
+          p_page_size?: number;
+          p_search?: string;
+          p_sort?: string;
+        };
+        Returns: {
+          completed_visits: number;
+          id: string;
+          last_visit: string | null;
+          name: string;
+          next_appointment: string | null;
+          phone: string;
+          realized_value_cents: number;
+          total_count: number;
+        }[];
+      };
       mark_commission_paid: {
         Args: { p_commission_id: string };
         Returns: undefined;

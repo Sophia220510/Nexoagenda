@@ -2,6 +2,7 @@ import Link from "next/link";
 import { updateBusiness } from "@/app/actions/business";
 import { Notice } from "@/components/notice";
 import { SubmitButton } from "@/components/submit-button";
+import { AdminImageUpload } from "@/components/admin-image-upload";
 import { requireOwner } from "@/lib/auth";
 
 export default async function SettingsPage({
@@ -40,17 +41,26 @@ export default async function SettingsPage({
             WhatsApp
             <input name="phone" defaultValue={business.phone} required />
           </label>
-          <label>
-            URL do logo
-            <input
-              name="logo_url"
-              type="url"
-              defaultValue={business.logo_url ?? ""}
-            />
-          </label>
+          <AdminImageUpload
+            label="Logo da empresa"
+            scope="logos"
+            name="logo_url"
+            defaultValue={business.logo_url ?? ""}
+            endpoint="/api/upload"
+          />
           <label>
             Fuso horário
-            <input name="timezone" defaultValue={business.timezone} required />
+            <input name="timezone" list="brazil-timezones" defaultValue={business.timezone} required />
+            <datalist id="brazil-timezones">
+              <option value="America/Sao_Paulo">Brasília, São Paulo e Sul</option>
+              <option value="America/Cuiaba">Mato Grosso</option>
+              <option value="America/Manaus">Amazonas</option>
+              <option value="America/Rio_Branco">Acre</option>
+              <option value="America/Noronha">Fernando de Noronha</option>
+              <option value="America/Fortaleza">Nordeste</option>
+              <option value="America/Belem">Pará</option>
+              <option value="America/Campo_Grande">Mato Grosso do Sul</option>
+            </datalist>
           </label>
           <div className="field-grid">
             <label>
@@ -72,6 +82,43 @@ export default async function SettingsPage({
               </select>
             </label>
           </div>
+          <fieldset className="settings-group">
+            <legend>Regras do agendamento online</legend>
+            <p className="muted">
+              Evite reservas em cima da hora e controle até quando o cliente pode agendar.
+            </p>
+            <div className="field-grid">
+              <label>
+                Antecedência mínima
+                <select
+                  name="min_booking_notice_minutes"
+                  defaultValue={business.min_booking_notice_minutes ?? 0}
+                >
+                  <option value="0">Sem antecedência mínima</option>
+                  <option value="30">30 minutos</option>
+                  <option value="60">1 hora</option>
+                  <option value="120">2 horas</option>
+                  <option value="240">4 horas</option>
+                  <option value="720">12 horas</option>
+                  <option value="1440">1 dia</option>
+                </select>
+              </label>
+              <label>
+                Agenda aberta por
+                <select
+                  name="max_booking_days_ahead"
+                  defaultValue={business.max_booking_days_ahead ?? 90}
+                >
+                  <option value="14">14 dias</option>
+                  <option value="30">30 dias</option>
+                  <option value="60">60 dias</option>
+                  <option value="90">90 dias</option>
+                  <option value="180">180 dias</option>
+                  <option value="365">1 ano</option>
+                </select>
+              </label>
+            </div>
+          </fieldset>
           <label>
             Descrição pública
             <textarea

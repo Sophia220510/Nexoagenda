@@ -19,7 +19,7 @@ export default async function ServicesPage({
   const supabase = await createClient();
   const { data: services } = await supabase
     .from("services")
-    .select("id,name,description,price_cents,default_duration_minutes,active")
+    .select("id,name,category,description,price_cents,default_duration_minutes,active")
     .eq("business_id", membership.business_id)
     .order("name");
   return (
@@ -41,6 +41,10 @@ export default async function ServicesPage({
             <label>
               Nome
               <input name="name" required />
+            </label>
+            <label>
+              Categoria
+              <input name="category" placeholder="Ex.: Cabelo, Consultas, Terapias" />
             </label>
             <label>
               Descrição
@@ -83,6 +87,7 @@ export default async function ServicesPage({
                   <div className="list-row">
                     <div>
                       <strong>{service.name}</strong>
+                      {service.category && <small>{service.category}</small>}
                       <p>
                         {formatCurrency(service.price_cents)} ·{" "}
                         {service.default_duration_minutes} min
@@ -110,6 +115,14 @@ export default async function ServicesPage({
                           name="name"
                           defaultValue={service.name}
                           required
+                        />
+                      </label>
+                      <label>
+                        Categoria
+                        <input
+                          name="category"
+                          defaultValue={service.category ?? ""}
+                          placeholder="Ex.: Cabelo, Consultas, Terapias"
                         />
                       </label>
                       <label>

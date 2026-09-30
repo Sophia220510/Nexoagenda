@@ -5,68 +5,36 @@ import { formatCurrency, formatDateTime } from "@/lib/format";
 import { formatPhone } from "@/lib/phone";
 import { createClient } from "@/lib/supabase/server";
 
-type Visit = {
-  starts_at: string;
-  status: string;
-  price_cents_snapshot: number | null;
-  services: { price_cents: number } | null;
-};
-
 export default async function CustomersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; sort?: string }>;
+  searchParams: Promise<{ q?: string; sort?: string; page?: string }>;
 }) {
   const membership = await requireOperator();
   const params = await searchParams;
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("customers")
-    .select(
-      "id,name,phone,created_at,appointments(starts_at,status,price_cents_snapshot,services(price_cents))",
-    )
-    .eq("business_id", membership.business_id)
-    .order("name");
-  const now = new Date();
-  const q = (params.q ?? "").trim().toLocaleLowerCase("pt-BR");
+  const q = (params.q ?? "").trim();
+  const sort = ["name", "recent", "visits"].includes(params.sort ?? "")
+    ? params.sort!
+    : "name";
+  const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
+  const pageSize = 25;
+  const { data, error } = await supabase.rpc("list_customers_summary", {
+    p_search: q,
+    p_sort: sort,
+    p_page: page,
+    p_page_size: pageSize,
+  });
+  if (error) throw new Error("Não foi possível carregar os clientes.");
   const timezone = membership.businesses?.timezone ?? "America/Sao_Paulo";
-  const customers = (data ?? [])
-    .map((customer) => {
-      const visits = customer.appointments as unknown as Visit[];
-      const valid = visits.filter((item) => item.status !== "CANCELLED");
-      const past = valid
-        .filter((item) => new Date(item.starts_at) < now)
-        .sort((a, b) => +new Date(b.starts_at) - +new Date(a.starts_at));
-      const next = valid
-        .filter((item) => new Date(item.starts_at) >= now)
-        .sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at))[0];
-      return {
-        ...customer,
-        visits,
-        past,
-        next,
-        value: valid.reduce(
-          (sum, item) =>
-            sum +
-            (item.price_cents_snapshot ?? item.services?.price_cents ?? 0),
-          0,
-        ),
-      };
-    })
-    .filter(
-      (customer) =>
-        !q ||
-        customer.name.toLocaleLowerCase("pt-BR").includes(q) ||
-        customer.phone.includes(q.replace(/\D/g, "")),
-    );
-  customers.sort((a, b) =>
-    params.sort === "recent"
-      ? +(b.past[0] ? new Date(b.past[0].starts_at) : 0) -
-        +(a.past[0] ? new Date(a.past[0].starts_at) : 0)
-      : params.sort === "visits"
-        ? b.past.length - a.past.length
-        : a.name.localeCompare(b.name, "pt-BR"),
-  );
+  const customers = data ?? [];
+  const total = Number(customers[0]?.total_count ?? 0);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const pageHref = (target: number) => {
+    const query = new URLSearchParams({ sort, page: String(target) });
+    if (q) query.set("q", q);
+    return `/painel/clientes?${query}`;
+  };
   return (
     <>
       <header className="page-header premium">
@@ -90,7 +58,7 @@ export default async function CustomersPage({
             placeholder="Buscar nome ou telefone"
           />
         </label>
-        <select name="sort" defaultValue={params.sort ?? "name"}>
+        <select name="sort" defaultValue={sort}>
           <option value="name">Nome A–Z</option>
           <option value="recent">Visita mais recente</option>
           <option value="visits">Mais atendimentos</option>
@@ -122,19 +90,17 @@ export default async function CustomersPage({
                   </span>
                 </span>
                 <span>
-                  {customer.past[0]
-                    ? formatDateTime(customer.past[0].starts_at, timezone)
+                  {customer.last_visit
+                    ? formatDateTime(customer.last_visit, timezone)
                     : "Ainda não atendido"}
                 </span>
                 <span>
-                  {customer.next
-                    ? formatDateTime(customer.next.starts_at, timezone)
+                  {customer.next_appointment
+                    ? formatDateTime(customer.next_appointment, timezone)
                     : "Sem agendamento"}
                 </span>
-                <span>
-                  {customer.past.filter((v) => v.status === "COMPLETED").length}
-                </span>
-                <span>{formatCurrency(customer.value)}</span>
+                <span>{customer.completed_visits}</span>
+                <span>{formatCurrency(Number(customer.realized_value_cents))}</span>
                 <ChevronRight size={18} />
               </Link>
             ))}
@@ -150,6 +116,17 @@ export default async function CustomersPage({
           </div>
         )}
       </section>
+      {totalPages > 1 && (
+        <nav className="pagination" aria-label="Paginação de clientes">
+          {page > 1 ? (
+            <Link className="button-ghost" href={pageHref(page - 1)}>Anterior</Link>
+          ) : <span />}
+          <span>Página {page} de {totalPages} · {total} clientes</span>
+          {page < totalPages ? (
+            <Link className="button-ghost" href={pageHref(page + 1)}>Próxima</Link>
+          ) : <span />}
+        </nav>
+      )}
     </>
   );
 }

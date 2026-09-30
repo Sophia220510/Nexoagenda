@@ -53,6 +53,7 @@ export async function createService(formData: FormData) {
   const membership = await requireOwner();
   const parsed = serviceSchema.safeParse({
     name: formData.get("name"),
+    category: formData.get("category"),
     description: formData.get("description"),
     price_cents: Math.round(Number(formData.get("price")) * 100),
     default_duration_minutes: formData.get("duration"),
@@ -89,6 +90,7 @@ export async function updateService(formData: FormData) {
   const id = z.string().uuid().safeParse(formData.get("id"));
   const parsed = serviceSchema.safeParse({
     name: formData.get("name"),
+    category: formData.get("category"),
     description: formData.get("description"),
     price_cents: Math.round(Number(formData.get("price")) * 100),
     default_duration_minutes: formData.get("duration"),
@@ -432,6 +434,13 @@ export async function updateBusiness(formData: FormData) {
     });
   if (!parsed.success)
     toError("/painel/configuracoes", parsed.error.issues[0].message);
+  try {
+    new Intl.DateTimeFormat("pt-BR", {
+      timeZone: parsed.data.timezone,
+    }).format(new Date());
+  } catch {
+    toError("/painel/configuracoes", "Escolha um fuso horário válido.");
+  }
 
   const logo = String(formData.get("logo_url") ?? "").trim();
   const instagram = String(formData.get("instagram_url") ?? "").trim();
@@ -445,6 +454,16 @@ export async function updateBusiness(formData: FormData) {
   const slotInterval = Number(formData.get("slot_interval_minutes") ?? 15);
   if (![5, 10, 15, 20, 30, 60].includes(slotInterval))
     toError("/painel/configuracoes", "Escolha um intervalo válido para a agenda.");
+  const minBookingNotice = Number(
+    formData.get("min_booking_notice_minutes") ?? 0,
+  );
+  const maxBookingDaysAhead = Number(
+    formData.get("max_booking_days_ahead") ?? 90,
+  );
+  if (![0, 30, 60, 120, 240, 720, 1440].includes(minBookingNotice))
+    toError("/painel/configuracoes", "Escolha uma antecedência mínima válida.");
+  if (![14, 30, 60, 90, 180, 365].includes(maxBookingDaysAhead))
+    toError("/painel/configuracoes", "Escolha um limite futuro válido.");
   const allowedMethods = ["PIX", "CASH", "DEBIT_CARD", "CREDIT_CARD", "OTHER"] as const;
   const acceptedPaymentMethods = formData.getAll("accepted_payment_methods").filter(
     (value): value is (typeof allowedMethods)[number] => allowedMethods.includes(value as (typeof allowedMethods)[number]),
@@ -468,6 +487,8 @@ export async function updateBusiness(formData: FormData) {
         formData.get("professionals_can_view_commission") === "on",
       business_mode: businessMode,
       slot_interval_minutes: slotInterval,
+      min_booking_notice_minutes: minBookingNotice,
+      max_booking_days_ahead: maxBookingDaysAhead,
       accepted_payment_methods: acceptedPaymentMethods,
       payment_fee_bps: { PIX: 0, CASH: 0, DEBIT_CARD: feeDebit, CREDIT_CARD: feeCredit, OTHER: 0 },
     })

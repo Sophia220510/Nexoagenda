@@ -9,6 +9,7 @@ type Props = {
   defaultValue?: string;
   name?: string;
   onChange?: (url: string) => void;
+  endpoint?: string;
 };
 
 export function AdminImageUpload({
@@ -18,6 +19,7 @@ export function AdminImageUpload({
   defaultValue = "",
   name,
   onChange,
+  endpoint = "/api/admin/upload",
 }: Props) {
   const [internalValue, setInternalValue] = useState(defaultValue);
   const [busy, setBusy] = useState(false);
@@ -32,7 +34,7 @@ export function AdminImageUpload({
     body.set("file", file);
     body.set("scope", scope);
     try {
-      const response = await fetch("/api/admin/upload", {
+      const response = await fetch(endpoint, {
         method: "POST",
         body,
       });

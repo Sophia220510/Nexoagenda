@@ -208,7 +208,7 @@ async function main() {
   }
 
   console.log("=====================================");
-  console.log("NEXO AGENDA — CREDENCIAIS DE TESTE");
+  console.log("NEXO BOOK — CREDENCIAIS DE TESTE");
   console.log(`MASTER ADMIN\nUsuário: ${credentials.master.username}\nSenha: ${credentials.master.password}`);
   console.log(`OWNER DEMO\nUsuário: ${credentials.lucas.username}\nSenha: ${credentials.lucas.password}`);
   console.log(`RAFAEL\nUsuário: ${credentials.rafael.username}\nSenha: ${credentials.rafael.password}`);

@@ -57,6 +57,14 @@ export function BookingFlow({ business }: { business: PublicBusiness }) {
   const selectedService = business.services.find(
     (service) => service.id === serviceId,
   );
+  const serviceGroups = useMemo(() => {
+    const groups = new Map<string, typeof business.services>();
+    for (const service of business.services) {
+      const category = service.category?.trim() || "Serviços";
+      groups.set(category, [...(groups.get(category) ?? []), service]);
+    }
+    return [...groups.entries()];
+  }, [business]);
   const dates = useMemo(
     () =>
       Array.from({ length: 14 }, (_, index) => {
@@ -107,6 +115,43 @@ export function BookingFlow({ business }: { business: PublicBusiness }) {
     setLoading(false);
   }
 
+  async function findNextAvailable() {
+    if (!serviceId || !professionalChoice) return;
+    setLoading(true);
+    setMessage("");
+    setSlot("");
+    for (const value of dates) {
+      const nextDate = dateKey(value);
+      const params = new URLSearchParams({
+        slug: business.slug,
+        professional: professionalChoice,
+        service: serviceId,
+        date: nextDate,
+      });
+      const response = await fetch(`/api/public/availability?${params}`);
+      const payload = (await response.json()) as {
+        slots?: string[];
+        professionalsBySlot?: Record<string, string>;
+        error?: string;
+      };
+      if (!response.ok) {
+        setMessage(payload.error ?? "Não foi possível consultar os horários.");
+        setLoading(false);
+        return;
+      }
+      if (payload.slots?.length) {
+        setDate(nextDate);
+        setSlots(payload.slots);
+        setProfessionalsBySlot(payload.professionalsBySlot ?? {});
+        setLoading(false);
+        return;
+      }
+    }
+    setSlots([]);
+    setMessage("Não encontramos horários nos próximos 14 dias.");
+    setLoading(false);
+  }
+
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
@@ -150,6 +195,14 @@ export function BookingFlow({ business }: { business: PublicBusiness }) {
   if (confirmed)
     {
       const professional = business.professionals.find((item) => item.id === professionalId);
+      const durationMinutes =
+        professional?.service_durations?.[serviceId] ??
+        selectedService?.default_duration_minutes ??
+        30;
+      const priceCents =
+        professional?.service_prices?.[serviceId] ??
+        selectedService?.price_cents ??
+        0;
       const destination = chooseBookingWhatsapp({
         businessPhone: business.phone,
         professionalPhone: professional?.whatsapp_phone,
@@ -167,7 +220,7 @@ export function BookingFlow({ business }: { business: PublicBusiness }) {
       });
       const whatsappHref = `https://wa.me/${destination.replace(/\D/g, "")}?text=${encodeURIComponent(whatsappMessage)}`;
       const start = new Date(slot);
-      const end = new Date(start.getTime() + (selectedService?.default_duration_minutes ?? 30) * 60_000);
+      const end = new Date(start.getTime() + durationMinutes * 60_000);
       const calendarHref = buildGoogleCalendarUrl({
         title: `${selectedService?.name ?? "Atendimento"} — ${business.name}`,
         start,
@@ -184,6 +237,7 @@ export function BookingFlow({ business }: { business: PublicBusiness }) {
         <p>O profissional não precisa aprovar nada.</p>
         <div className="booking-summary">
           <strong>{selectedService?.name}</strong>
+          <span>{formatCurrency(priceCents)} · {durationMinutes} min</span>
           <span>
             {
               business.professionals.find(
@@ -251,28 +305,36 @@ export function BookingFlow({ business }: { business: PublicBusiness }) {
         <span>1</span>
         <div>
           <h2>Escolha o serviço</h2>
-          <div className="option-grid">
-            {business.services.map((service) => (
-              <button
-                type="button"
-                className={
-                  serviceId === service.id ? "option selected" : "option"
-                }
-                onClick={() => {
-                  setServiceId(service.id);
-                  setProfessionalId("");
-                  setProfessionalChoice("");
-                  setDate("");
-                  setSlots([]);
-                }}
-                key={service.id}
-              >
-                <strong>{service.name}</strong>
-                <small>
-                  {formatCurrency(service.price_cents)} ·{" "}
-                  {service.default_duration_minutes} min
-                </small>
-              </button>
+          <div className="booking-service-groups">
+            {serviceGroups.map(([category, services]) => (
+              <section className="booking-service-group" key={category}>
+                {serviceGroups.length > 1 && <h3>{category}</h3>}
+                <div className="option-grid">
+                  {services.map((service) => (
+                    <button
+                      type="button"
+                      className={
+                        serviceId === service.id ? "option selected" : "option"
+                      }
+                      onClick={() => {
+                        setServiceId(service.id);
+                        setProfessionalId("");
+                        setProfessionalChoice("");
+                        setDate("");
+                        setSlots([]);
+                      }}
+                      key={service.id}
+                    >
+                      <strong>{service.name}</strong>
+                      {service.description && <span>{service.description}</span>}
+                      <small>
+                        {formatCurrency(service.price_cents)} ·{" "}
+                        {service.default_duration_minutes} min
+                      </small>
+                    </button>
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
         </div>
@@ -371,6 +433,14 @@ export function BookingFlow({ business }: { business: PublicBusiness }) {
                 );
               })}
             </div>
+            <button
+              type="button"
+              className="button-ghost next-available-button"
+              onClick={findNextAvailable}
+              disabled={loading}
+            >
+              Encontrar o próximo horário disponível
+            </button>
             {loading && (
               <div className="slots-loading">
                 Buscando horários disponíveis…
@@ -440,6 +510,17 @@ export function BookingFlow({ business }: { business: PublicBusiness }) {
             </div>
             <div className="booking-summary">
               <strong>{selectedService?.name}</strong>
+              <span>
+                {formatCurrency(
+                  business.professionals.find((item) => item.id === professionalId)
+                    ?.service_prices?.[serviceId] ??
+                    selectedService?.price_cents ??
+                    0,
+                )} ·{" "}
+                {business.professionals.find((item) => item.id === professionalId)
+                  ?.service_durations?.[serviceId] ??
+                  selectedService?.default_duration_minutes} min
+              </span>
               <span>
                 {
                   business.professionals.find(
