@@ -9,6 +9,9 @@ export const RESERVED_SLUGS = [
   "admin",
   "auth",
   "settings",
+  "privacidade",
+  "termos",
+  "contato",
 ] as const;
 
 export const DEFAULT_TIMEZONE = "America/Sao_Paulo";

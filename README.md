@@ -11,7 +11,7 @@ SaaS multiempresa de agendamento para qualquer negócio baseado em serviço, dur
 - `date-fns`/`date-fns-tz` para limites de data no fuso da empresa
 - Vitest para regras determinísticas
 
-Não há ORM. A aplicação web nunca usa chave secreta: ela existe apenas no script local e explícito de bootstrap do ambiente demo.
+Não há ORM. Chaves secretas são usadas apenas no servidor (por exemplo, operações administrativas e sitemap), nunca enviadas ao navegador.
 
 ## Instalação
 
@@ -29,9 +29,13 @@ Preencha `.env.local`:
 NEXT_PUBLIC_SUPABASE_URL=https://SEU_PROJECT_REF.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=SUA_CHAVE_PUBLICAVEL
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
+NEXT_PUBLIC_SUPPORT_EMAIL=
 ```
 
 `.env.local` está ignorado. Nunca coloque uma chave secreta no navegador ou no Git.
+Em produção, configure `NEXT_PUBLIC_SITE_URL` com a origem HTTPS canônica e `NEXT_PUBLIC_SUPPORT_EMAIL` com um endereço público confirmado. O sitemap usa `SUPABASE_SECRET_KEY` apenas no servidor para listar slugs de estabelecimentos ativos; sem a chave, ainda publica a página inicial.
+
+Para conferir a experiência pública local em Chrome instalado, após `npm run build` e `npm run start -- --port 3100`, execute `node scripts/mobile-smoke.mjs`. O script testa 320, 360, 375, 390 e 430 px sem criar agendamentos.
 
 ## Banco e migrations
 

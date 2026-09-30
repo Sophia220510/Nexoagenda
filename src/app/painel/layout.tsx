@@ -1,4 +1,7 @@
+import type { Metadata } from "next";
 import { DashboardNav } from "@/components/dashboard-nav";
+
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 import {
   getCurrentProfessional,
   getCurrentUser,

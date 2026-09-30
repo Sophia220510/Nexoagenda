@@ -1,4 +1,7 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Entrar", robots: { index: false, follow: false } };
 import { login } from "@/app/actions/auth";
 import { AuthCard } from "@/components/auth-card";
 import { Notice } from "@/components/notice";

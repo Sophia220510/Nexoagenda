@@ -1,8 +1,11 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BookingFlow } from "@/components/booking-flow";
 import { NexoBrand } from "@/components/nexo-brand";
 import { getPublicBusiness } from "@/lib/public-business";
+
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 export default async function BookingPage({
   params,

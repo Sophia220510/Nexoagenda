@@ -22,7 +22,6 @@ export function NexoBrand({
           alt=""
           width={42}
           height={42}
-          priority
         />
       </span>
       {!compact && (

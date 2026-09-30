@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { NexoBrand } from "@/components/nexo-brand";
 import { formatCurrency } from "@/lib/format";
 import { getPublicBusiness } from "@/lib/public-business";
+import { absoluteUrl } from "@/lib/site-url";
 import { CalendarCheck2, Clock3, ShieldCheck } from "lucide-react";
 
 export async function generateMetadata({
@@ -18,8 +19,16 @@ export async function generateMetadata({
     ? {
         title: `${business.name} — Agende seu horário`,
         description: `Escolha serviço, profissional, data e horário para agendar online em ${business.name}.`,
+        alternates: { canonical: absoluteUrl(`/${business.slug}`) },
+        openGraph: {
+          title: `${business.name} — Agende seu horário`,
+          description: `Agende online em ${business.name} com a NEXO Book.`,
+          url: absoluteUrl(`/${business.slug}`),
+          type: "website",
+          images: business.logo_url ? [{ url: business.logo_url }] : [{ url: "/brand/opengraph.png", width: 1200, height: 630 }],
+        },
       }
-    : {};
+    : { robots: { index: false, follow: false } };
 }
 
 export default async function PublicBusinessPage({
@@ -125,9 +134,7 @@ export default async function PublicBusinessPage({
             </a>
           )}
         </span>
-        <span>
-          Powered by <strong>NEXO Book</strong>
-        </span>
+        <span>Powered by <Link href="/">NEXO Book</Link></span>
       </footer>
     </main>
   );

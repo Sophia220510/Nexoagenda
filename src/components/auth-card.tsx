@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { NexoBrand } from "@/components/nexo-brand";
 
 export function AuthCard({
   title,
@@ -13,9 +13,7 @@ export function AuthCard({
 }) {
   return (
     <main className="auth-shell">
-      <Link href="/" className="brand">
-        Nexo<span>Agenda</span>
-      </Link>
+      <NexoBrand />
       <section className="auth-card">
         <div>
           <p className="eyebrow">Agenda profissional</p>

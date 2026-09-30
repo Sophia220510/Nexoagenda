@@ -1,4 +1,6 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+import { absoluteUrl } from "@/lib/site-url";
 import {
   ArrowRight,
   CalendarCheck2,
@@ -10,6 +12,10 @@ import {
   UsersRound,
 } from "lucide-react";
 import { NexoBrand } from "@/components/nexo-brand";
+
+export const metadata: Metadata = {
+  alternates: { canonical: absoluteUrl("/") },
+};
 
 const features = [
   [
@@ -227,7 +233,13 @@ export default function Home() {
       <footer className="landing-v2-footer">
         <NexoBrand inverse />
         <p>Agenda inteligente para negócios e profissionais.</p>
-        <Link href="/login">Entrar</Link>
+        <div className="landing-footer-links">
+          <Link href="/login">Entrar</Link>
+          <Link href="/privacidade">Privacidade</Link>
+          <Link href="/termos">Termos</Link>
+          <Link href="/contato">Contato</Link>
+        </div>
+        <small>© {new Date().getFullYear()} NEXO Book</small>
       </footer>
     </main>
   );

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { absoluteUrl } from "@/lib/site-url";
 import { internalAuthIdentifier, normalizeUsername } from "@/lib/username";
 import {
   getStoredAccount,
@@ -224,7 +225,7 @@ export async function signup(formData: FormData) {
     password: parsed.data.password,
     options: {
       data: { full_name: parsed.data.full_name },
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/auth/callback`,
+      emailRedirectTo: absoluteUrl("/auth/callback"),
     },
   });
   if (error)
@@ -248,7 +249,7 @@ export async function requestPasswordReset(formData: FormData) {
     );
   const supabase = await createClient();
   await supabase.auth.resetPasswordForEmail(email.data, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/auth/callback?next=/redefinir-senha`,
+    redirectTo: absoluteUrl("/auth/callback?next=/redefinir-senha"),
   });
   redirect(
     messageUrl(
